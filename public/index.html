@@ -26,7 +26,8 @@
   *{box-sizing:border-box;}
   body{
     margin:0;
-    font-family: "Georgia", "Iowan Old Style", serif;
+    font-family: 'Segoe UI', system-ui, -apple-system, Arial, Helvetica, sans-serif;
+    font-size:12px;
     background: var(--paper);
     color: var(--text);
   }
@@ -42,25 +43,25 @@
   .brand img{width:74px; height:74px; object-fit:contain; margin-bottom:10px;}
   .brand .school{font-size:16px; letter-spacing:0.4px; margin:0; font-weight:bold;
     background:linear-gradient(90deg,#E8B93A,#FFF3C4,#C9971F);
-    -webkit-background-clip:text; background-clip:text; color:transparent; font-family:Arial, sans-serif;}
+    -webkit-background-clip:text; background-clip:text; color:transparent; font-family:'Segoe UI', system-ui, -apple-system, Arial, Helvetica, sans-serif;}
   .brand h1{font-size:11px; margin:4px 0 0 0; font-weight:normal; line-height:1.3; color:#C9C6BC;
-    text-transform:uppercase; letter-spacing:1px; font-family:Arial, sans-serif;}
+    text-transform:uppercase; letter-spacing:1px; font-family:'Segoe UI', system-ui, -apple-system, Arial, Helvetica, sans-serif;}
   nav{flex:1; padding:14px 0;}
   nav button{
     display:flex; align-items:center; gap:10px; width:100%; text-align:left; background:none; border:none;
-    color:#D6DEEC; padding:11px 20px; font-size:14px; cursor:pointer; font-family: Arial, sans-serif;
+    color:#D6DEEC; padding:11px 20px; font-size:12px; cursor:pointer; font-family: 'Segoe UI', system-ui, -apple-system, Arial, Helvetica, sans-serif;
     border-left:3px solid transparent; transition:background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
   }
   nav button:hover{ background:rgba(255,255,255,0.06); color:#fff; }
   nav button.active{ background:rgba(255,255,255,0.10); color:#fff; border-left-color:var(--gold); font-weight:bold;}
-  nav .ico{width:18px; text-align:center; font-size:14px;}
-  .foot{padding:14px 20px; font-size:11px; color:#8FA1C0; border-top:1px solid rgba(255,255,255,0.15); font-family: Arial, sans-serif;}
+  nav .ico{width:18px; text-align:center; font-size:12px;}
+  .foot{padding:14px 20px; font-size:11px; color:#8FA1C0; border-top:1px solid rgba(255,255,255,0.15); font-family: 'Segoe UI', system-ui, -apple-system, Arial, Helvetica, sans-serif;}
 
   main{flex:1; padding:30px 40px; max-width:1180px;}
   @keyframes fadeInUp{ from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);} }
   main.fade-in{animation:fadeInUp 0.28s ease;}
   h2.page-title{font-size:24px; margin:0 0 4px 0; font-weight:normal; color:var(--navy-dark);}
-  p.page-sub{font-family: Arial, sans-serif; font-size:13px; color:var(--muted); margin:0 0 24px 0;}
+  p.page-sub{font-family: 'Segoe UI', system-ui, -apple-system, Arial, Helvetica, sans-serif; font-size:12px; color:var(--muted); margin:0 0 24px 0;}
 
   .grid{display:grid; gap:16px;}
   .grid-4{grid-template-columns:repeat(4,1fr);}
@@ -71,35 +72,35 @@
   .kpi{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:16px 18px;
     box-shadow:0 1px 2px rgba(20,20,15,0.04); transition:box-shadow 0.2s ease, transform 0.2s ease;}
   .kpi:hover{box-shadow:0 6px 18px rgba(20,20,15,0.08); transform:translateY(-2px);}
-  .kpi .lbl{font-family: Arial, sans-serif; font-size:11px; text-transform:uppercase; letter-spacing:0.6px; color:var(--muted); margin:0 0 6px 0;}
+  .kpi .lbl{font-family: 'Segoe UI', system-ui, -apple-system, Arial, Helvetica, sans-serif; font-size:11px; text-transform:uppercase; letter-spacing:0.6px; color:var(--muted); margin:0 0 6px 0;}
   .kpi .val{font-size:26px; color:var(--navy-dark); margin:0; font-variant-numeric:tabular-nums; letter-spacing:-0.3px;}
-  .kpi .sub{font-family: Arial, sans-serif; font-size:12px; color:var(--muted); margin-top:4px;}
+  .kpi .sub{font-family: 'Segoe UI', system-ui, -apple-system, Arial, Helvetica, sans-serif; font-size:12px; color:var(--muted); margin-top:4px;}
 
   .card{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:20px; margin-bottom:20px;
     box-shadow:0 1px 3px rgba(20,20,15,0.05);}
   .card h3{margin:0 0 14px 0; font-size:16px; font-weight:normal; color:var(--navy-dark); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;}
 
-  table{width:100%; border-collapse:collapse; font-family: Arial, sans-serif; font-size:13px;}
+  table{width:100%; border-collapse:collapse; font-family: 'Segoe UI', system-ui, -apple-system, Arial, Helvetica, sans-serif; font-size:12px;}
   th{ text-align:left; color:var(--muted); font-weight:normal; font-size:11px; text-transform:uppercase; letter-spacing:0.4px; padding:8px 10px; border-bottom:1px solid var(--line);}
   td{padding:9px 10px; border-bottom:1px solid #EFEDE6; color:var(--text);}
   tr:last-child td{border-bottom:none;}
   td.num, th.num{text-align:right; font-variant-numeric: tabular-nums;}
   .row-alert td{background:var(--warn-bg);}
-  .tag{font-family:Arial, sans-serif; font-size:11px; padding:2px 9px; border-radius:20px; display:inline-block;}
+  .tag{font-family:'Segoe UI', system-ui, -apple-system, Arial, Helvetica, sans-serif; font-size:11px; padding:2px 9px; border-radius:20px; display:inline-block;}
   .tag-ok{background:var(--ok-bg); color:var(--ok);}
   .tag-warn{background:var(--warn-bg); color:var(--warn);}
   .tag-gold{background:var(--gold-bg); color:var(--gold);}
 
   input, select{
-    font-family: Arial, sans-serif; font-size:13px; padding:7px 9px; border:1px solid var(--line);
+    font-family: 'Segoe UI', system-ui, -apple-system, Arial, Helvetica, sans-serif; font-size:12px; padding:7px 9px; border:1px solid var(--line);
     border-radius:6px; background:#fff; color:var(--text);
   }
   input:focus, select:focus{outline:2px solid var(--navy-light); outline-offset:0;}
-  label{font-family:Arial, sans-serif; font-size:11px; color:var(--muted); display:block; margin-bottom:4px;}
+  label{font-family:'Segoe UI', system-ui, -apple-system, Arial, Helvetica, sans-serif; font-size:11px; color:var(--muted); display:block; margin-bottom:4px;}
   .field{margin-bottom:12px;}
 
   button.btn{
-    font-family: Arial, sans-serif; font-size:13px; padding:8px 16px; border-radius:6px; cursor:pointer;
+    font-family: 'Segoe UI', system-ui, -apple-system, Arial, Helvetica, sans-serif; font-size:12px; padding:8px 16px; border-radius:6px; cursor:pointer;
     border:1px solid var(--navy); background:var(--navy); color:#fff; transition:background 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
   }
   button.btn:hover{background:var(--navy-dark); box-shadow:0 3px 10px rgba(20,20,15,0.15);}
@@ -113,22 +114,22 @@
   tbody tr:not(.row-alert):hover td{background:#FBFAF6;}
 
   .toolbar{display:flex; gap:10px; align-items:end; flex-wrap:wrap; margin-bottom:16px;}
-  .empty{font-family:Arial, sans-serif; color:var(--muted); font-size:13px; padding:30px 0; text-align:center;}
-  .badge-count{background:var(--gold); color:#fff; border-radius:20px; font-size:10px; padding:1px 7px; font-family:Arial, sans-serif; margin-left:6px;}
+  .empty{font-family:'Segoe UI', system-ui, -apple-system, Arial, Helvetica, sans-serif; color:var(--muted); font-size:12px; padding:30px 0; text-align:center;}
+  .badge-count{background:var(--gold); color:#fff; border-radius:20px; font-size:10px; padding:1px 7px; font-family:'Segoe UI', system-ui, -apple-system, Arial, Helvetica, sans-serif; margin-left:6px;}
   .muted{color:var(--muted);}
   .toast{
     position:fixed; bottom:24px; right:24px; background:var(--navy-dark); color:#fff; padding:12px 18px;
-    border-radius:8px; font-family:Arial, sans-serif; font-size:13px; box-shadow:0 4px 14px rgba(0,0,0,0.2);
+    border-radius:8px; font-family:'Segoe UI', system-ui, -apple-system, Arial, Helvetica, sans-serif; font-size:12px; box-shadow:0 4px 14px rgba(0,0,0,0.2);
     opacity:0; transform:translateY(8px); transition:all 0.25s; pointer-events:none; z-index:999;
   }
   .toast.show{opacity:1; transform:translateY(0);}
-  .compo-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:6px 10px; font-family:Arial, sans-serif; font-size:12px;}
+  .compo-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:6px 10px; font-family:'Segoe UI', system-ui, -apple-system, Arial, Helvetica, sans-serif; font-size:12px;}
   .compo-grid div{display:flex; justify-content:space-between; padding:3px 0; border-bottom:1px dotted var(--line);}
   .compo-grid b{color:var(--navy-dark);}
   .modal-bg{position:fixed; inset:0; background:rgba(20,20,15,0.4); display:flex; align-items:center; justify-content:center; z-index:100;}
   .modal{background:#fff; border-radius:12px; padding:24px 28px; width:480px; max-width:92vw; max-height:85vh; overflow:auto;}
   .modal h3{margin-top:0;}
-  .close-x{float:right; cursor:pointer; color:var(--muted); font-family:Arial; font-size:18px; border:none; background:none;}
+  .close-x{float:right; cursor:pointer; color:var(--muted); font-family:'Segoe UI', system-ui, -apple-system, Arial, Helvetica, sans-serif; font-size:18px; border:none; background:none;}
 
   /* ---------- MOBILE / RESPONSIVE ---------- */
   .mobile-topbar{display:none;}
@@ -140,9 +141,9 @@
     .mobile-topbar{
       display:flex; align-items:center; justify-content:space-between;
       background:var(--navy-dark); color:#fff; padding:14px 18px; position:sticky; top:0; z-index:60;
-      font-family:Arial, sans-serif;
+      font-family:'Segoe UI', system-ui, -apple-system, Arial, Helvetica, sans-serif;
     }
-    .mobile-topbar .mobile-title{font-size:14px; font-weight:bold; letter-spacing:0.4px;
+    .mobile-topbar .mobile-title{font-size:12px; font-weight:bold; letter-spacing:0.4px;
       background:linear-gradient(90deg,#E8B93A,#FFF3C4,#C9971F); -webkit-background-clip:text; background-clip:text; color:transparent;}
     .mobile-topbar button{background:none; border:none; color:#fff; font-size:22px; cursor:pointer; padding:2px 4px; line-height:1;}
     aside{
@@ -203,6 +204,7 @@ const VIEWS = [
   {id:'stock', label:'Stock', ico:'&#128230;'},
   {id:'fournisseurs', label:'Fournisseurs', ico:'&#9993;'},
   {id:'commandes', label:'Commandes', ico:'&#128203;'},
+  {id:'prevision', label:'Prévision commande', ico:'&#129518;'},
   {id:'rapport', label:'Rapport financier', ico:'&#128200;'},
 ];
 
@@ -342,6 +344,18 @@ function showToast(msg){
 
 function fmt(n){ return Math.round(n).toLocaleString('fr-FR'); }
 
+async function resetData(){
+  const ok = confirm("⚠️ ATTENTION\n\nTout remettre à zéro va SUPPRIMER définitivement :\n- toutes les ventes\n- toutes les commandes\n- toutes les dépenses\net remettre TOUT le stock à 0.\n\nLes kits, les prix et les fournisseurs sont conservés.\n\nCette action est irréversible. Continuer ?");
+  if(!ok) return;
+  DATA.ventes = [];
+  DATA.commandes = [];
+  DATA.depenses = [];
+  DATA.articles.forEach(a=>{ a.stock = 0; });
+  await saveData();
+  showToast("Tout est remis à zéro — prêt à démarrer");
+  render();
+}
+
 function findArticleIdx(nom){ return DATA.articles.findIndex(a=>a.nom===nom); }
 
 function kitCost(niveau){
@@ -404,6 +418,7 @@ function render(){
   if(currentView==='stock') return renderStock(main);
   if(currentView==='fournisseurs') return renderFournisseurs(main);
   if(currentView==='commandes') return renderCommandes(main);
+  if(currentView==='prevision') return renderPrevision(main);
   if(currentView==='rapport') return renderRapport(main);
 }
 
@@ -472,7 +487,13 @@ function renderDashboard(main){
           </tbody></table>`}
       </div>
     </div>
+    <div class="card" style="border:1px solid var(--warn); margin-top:4px;">
+      <h3>Démarrage / Réinitialisation</h3>
+      <p style="font-size:12px; color:var(--muted); margin:0 0 12px;">Remet à zéro toutes les ventes, commandes, dépenses et le stock — pour bien démarrer une nouvelle année. Les kits, prix et fournisseurs sont conservés.</p>
+      <button class="btn btn-danger" id="btn-reset">Tout remettre à zéro</button>
+    </div>
   `;
+  document.getElementById('btn-reset').onclick = resetData;
 }
 
 // ---------- KITS & NIVEAUX ----------
@@ -492,8 +513,8 @@ function renderKits(main){
     const wrap = document.createElement('div');
     wrap.style.cssText = 'border-top:1px solid var(--line); padding:14px 0;';
     wrap.innerHTML = `
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; font-family:Arial,sans-serif; flex-wrap:wrap; gap:10px;">
-        <b style="color:var(--navy-dark); font-size:14px;">${n.nom}</b>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; font-family:'Segoe UI', system-ui, -apple-system, Arial, Helvetica, sans-serif; flex-wrap:wrap; gap:10px;">
+        <b style="color:var(--navy-dark); font-size:12px;">${n.nom}</b>
         <div style="display:flex; align-items:center; gap:14px; font-size:12px;">
           <span class="muted">Prix de vente:</span>
           <input type="number" min="0" value="${n.montant}" style="width:80px;" data-montant="${n.id}">
@@ -694,14 +715,14 @@ function renderJournal(main){
         <div class="kpi"><p class="lbl">Bénéfice du jour</p><p class="val" style="color:var(--ok);">${fmt(marge)} F</p></div>
       </div>
       ${ventesJour.length===0 ? '<div class="empty">Aucune vente ce jour-là.</div>' : `
-      <div style="font-family:Arial,sans-serif; font-weight:bold; color:var(--navy-dark); font-size:13px; margin:10px 0 6px;">Répartition par niveau</div>
+      <div style="font-family:'Segoe UI', system-ui, -apple-system, Arial, Helvetica, sans-serif; font-weight:bold; color:var(--navy-dark); font-size:12px; margin:10px 0 6px;">Répartition par niveau</div>
       <table><thead><tr><th>Niveau</th><th class="num">Kits</th><th class="num">Recette</th></tr></thead><tbody>
       ${Object.keys(parNiveau).map(nid=>{
         const n = DATA.niveaux.find(x=>x.id===nid);
         return `<tr><td>${n?n.nom:'?'}</td><td class="num">${fmt(parNiveau[nid])}</td><td class="num">${fmt((n?n.montant:0)*parNiveau[nid])} F</td></tr>`;
       }).join('')}
       </tbody></table>
-      <div style="font-family:Arial,sans-serif; font-weight:bold; color:var(--navy-dark); font-size:13px; margin:18px 0 6px;">Transactions de la journée</div>
+      <div style="font-family:'Segoe UI', system-ui, -apple-system, Arial, Helvetica, sans-serif; font-weight:bold; color:var(--navy-dark); font-size:12px; margin:18px 0 6px;">Transactions de la journée</div>
       <table><thead><tr><th>Heure</th><th>Niveau</th><th class="num">Kits</th><th class="num">Montant</th></tr></thead><tbody>
       ${ventesJour.map(v=>{
         const n = DATA.niveaux.find(x=>x.id===v.niveauId);
@@ -1101,7 +1122,7 @@ function renderCommandes(main){
       const block = document.createElement('div');
       block.style.marginBottom = '18px';
       block.innerHTML = `
-        <div style="font-family:Arial,sans-serif; font-weight:bold; color:var(--navy-dark); font-size:13px; margin-bottom:6px;">${label} <span class="muted" style="font-weight:normal;">— ${fmt(total)} F</span></div>
+        <div style="font-family:'Segoe UI', system-ui, -apple-system, Arial, Helvetica, sans-serif; font-weight:bold; color:var(--navy-dark); font-size:12px; margin-bottom:6px;">${label} <span class="muted" style="font-weight:normal;">— ${fmt(total)} F</span></div>
         <table><thead><tr><th>Article</th><th class="num">Besoin</th><th class="num">Stock</th><th class="num">A commander</th><th class="num">Montant</th></tr></thead><tbody>
         ${groups[fid].map(s=>`<tr><td>${s.article.nom}</td><td class="num">${fmt(s.besoin)}</td><td class="num">${fmt(s.article.stock)}</td><td class="num"><b>${fmt(s.aCommander)}</b></td><td class="num">${fmt(s.aCommander*s.article.prixAchat)} F</td></tr>`).join('')}
         </tbody></table>
@@ -1132,7 +1153,7 @@ function renderCommandes(main){
     const received = c.statut === 'reçue';
     return `
     <div style="border-top:1px solid var(--line); padding:14px 0;">
-      <div style="display:flex; justify-content:space-between; align-items:center; font-family:Arial,sans-serif; font-size:13px; margin-bottom:8px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; font-family:'Segoe UI', system-ui, -apple-system, Arial, Helvetica, sans-serif; font-size:12px; margin-bottom:8px;">
         <div><b>${fourn?fourn.nom:'Sans fournisseur'}</b> <span class="muted">— ${c.date} — ${fmt(total)} F</span></div>
         <div>
           <span class="tag ${received?'tag-ok':'tag-gold'}">${received?'Reçue':'En attente'}</span>
@@ -1157,6 +1178,80 @@ function renderCommandes(main){
       renderCommandes(main);
     };
   });
+}
+
+// ---------- PREVISION DE COMMANDE ----------
+// Calcule le besoin par article à partir d'un nombre de kits saisi par niveau
+function computeBesoinFromKits(kitsByNiveau){
+  const besoin = new Array(DATA.articles.length).fill(0);
+  Object.keys(kitsByNiveau).forEach(nid=>{
+    const qty = kitsByNiveau[nid] || 0;
+    if(qty <= 0) return;
+    const niv = DATA.niveaux.find(n=>n.id===nid);
+    if(!niv) return;
+    DEFAULT_COMPO_HEADERS.forEach(key=>{
+      const art = articleByCompoKey(key);
+      if(art){ const idx = DATA.articles.indexOf(art); besoin[idx] += (niv.compo[key]||0) * qty; }
+    });
+    // Contenu de la trousse (scotch, colle, bics...)
+    const trousseQty = (niv.compo['Trousse']||0) * qty;
+    if(trousseQty > 0){ TROUSSE_LINKED_INDEXES.forEach(i=>{ besoin[i] += trousseQty; }); }
+  });
+  return besoin;
+}
+
+function renderPrevision(main){
+  main.innerHTML = `
+    <h2 class="page-title">Prévision de commande</h2>
+    <p class="page-sub">Entrez le nombre de kits par niveau (par exemple les kits vendus l'an dernier). L'appli calcule, article par article, combien il faut commander en tenant compte du stock actuel.</p>
+    <div class="card">
+      <h3>Kits prévus par niveau</h3>
+      <table><thead><tr><th>Niveau</th><th class="num">Nombre de kits</th></tr></thead><tbody>
+        ${DATA.niveaux.map(n=>`<tr><td>${n.nom}</td><td class="num"><input type="number" min="0" value="0" style="width:90px; text-align:right;" data-prev="${n.id}"></td></tr>`).join('')}
+      </tbody></table>
+      <button class="btn" id="prev-calc" style="margin-top:14px;">Calculer la commande</button>
+    </div>
+    <div id="prev-result"></div>
+  `;
+
+  document.getElementById('prev-calc').onclick = ()=>{
+    const kitsByNiveau = {};
+    let totalKits = 0;
+    main.querySelectorAll('input[data-prev]').forEach(inp=>{
+      const q = parseInt(inp.value)||0;
+      kitsByNiveau[inp.dataset.prev] = q;
+      totalKits += q;
+    });
+    const result = document.getElementById('prev-result');
+    if(totalKits === 0){
+      result.innerHTML = '<div class="card"><div class="empty">Entrez au moins un nombre de kits, puis cliquez sur « Calculer la commande ».</div></div>';
+      return;
+    }
+    const besoin = computeBesoinFromKits(kitsByNiveau);
+    const rows = DATA.articles
+      .map((a,i)=>({article:a, besoin:besoin[i], aCommander:Math.max(besoin[i]-a.stock,0)}))
+      .filter(x=>x.besoin > 0);
+
+    // Regrouper par fournisseur
+    const groups = {};
+    rows.forEach(r=>{ const fid=r.article.fournisseurId||'_none'; (groups[fid]=groups[fid]||[]).push(r); });
+    const totalCmd = rows.reduce((s,r)=>s + r.aCommander*r.article.prixAchat, 0);
+
+    let html = '<div class="card"><h3>Détail par article — combien commander selon le stock</h3>';
+    Object.keys(groups).forEach(fid=>{
+      const fourn = DATA.fournisseurs.find(f=>f.id===fid);
+      const label = fourn ? fourn.nom : 'Sans fournisseur assigné';
+      html += `<div style="font-weight:bold; color:var(--navy-dark); font-size:12px; margin:14px 0 6px;">${label}</div>`;
+      html += '<table><thead><tr><th>Article</th><th class="num">Besoin</th><th class="num">Stock actuel</th><th class="num">À commander</th><th class="num">Montant</th></tr></thead><tbody>';
+      groups[fid].forEach(r=>{
+        html += `<tr><td>${r.article.nom}</td><td class="num">${fmt(r.besoin)}</td><td class="num">${fmt(r.article.stock)}</td><td class="num"><b>${fmt(r.aCommander)}</b></td><td class="num">${fmt(r.aCommander*r.article.prixAchat)} F</td></tr>`;
+      });
+      html += '</tbody></table>';
+    });
+    html += `<div style="text-align:right; margin-top:14px; font-weight:bold; color:var(--navy-dark);">Total à commander : ${fmt(totalCmd)} F</div>`;
+    html += '</div>';
+    result.innerHTML = html;
+  };
 }
 
 (async function init(){
