@@ -185,7 +185,6 @@
 const VIEWS = [
   {id:'dashboard', label:'Accueil', ico:'&#127968;'},
   {id:'ventes', label:'Vendre un kit', ico:'&#128722;'},
-  {id:'livres', label:'Kits Livres', ico:'&#128218;'},
   {id:'journal', label:'Recette du jour', ico:'&#128197;'},
   {id:'depenses', label:'Dépenses', ico:'&#128181;'},
   {id:'stock', label:'Mon stock', ico:'&#128230;'},
@@ -253,188 +252,6 @@ const TROUSSE_INDEX = 14;
 
 const DEFAULT_DEPENSE_CATEGORIES = ["Loyer","Salaires","Électricité","Eau","Transport","Communication (téléphone/internet)","Fournitures de bureau","Entretien / réparation","Impôts & taxes","Autre"];
 
-// ---------- KITS LIVRES (College Prive Les Cartesiens d'Abidjan, 2025-2026) ----------
-// "base" = matières toujours incluses. "options" = extras cochables au moment de la vente
-// (Musique, Arts Plastiques, Allemand, Espagnol selon le niveau).
-const DEFAULT_LIVRES_NIVEAUX = [
-  { nom:"6ème", base:[
-      {matiere:"FRANÇAIS", nom:"Bienvenue en sixième", prix:2500},
-      {matiere:"FRANÇAIS", nom:"Talouablé, la dévoreuse de livres", prix:2500},
-      {matiere:"FRANÇAIS", nom:"Cahier d'habileté", prix:3000},
-      {matiere:"ANGLAIS", nom:"Manuel English for ever", prix:3500},
-      {matiere:"HIST-GÉO", nom:"Cahier d'habileté", prix:3000},
-      {matiere:"EDHC", nom:"Cahier d'habileté d'EDHC", prix:3000},
-      {matiere:"MATHS", nom:"Cahier + Manuel de la réussite Mathématique", prix:6000},
-      {matiere:"PHYSIQUE-CHIMIE", nom:"Cahier de la réussite Physique-Chimie 6ème", prix:3000},
-      {matiere:"SVT", nom:"Cahier de la réussite SVT 6ème", prix:3000},
-      {matiere:"EPS", nom:"Cahier d'activité", prix:1650},
-      {matiere:"INFORMATIQUE", nom:"Support de cours", prix:2000},
-      {matiere:"ENTREPRENEURIAT", nom:"Support de cours (disponible ultérieurement)", prix:3500},
-    ], options:[
-      {nom:"Musique (cahier + flûte)", prix:4000},
-      {nom:"Arts Plastiques (fournitures)", prix:8500},
-    ]},
-  { nom:"5ème", base:[
-      {matiere:"FRANÇAIS", nom:"Retour de l'enfant soldat", prix:2500},
-      {matiere:"FRANÇAIS", nom:"Destins de Clandestins", prix:2600},
-      {matiere:"FRANÇAIS", nom:"Cahier d'habileté", prix:3000},
-      {matiere:"ANGLAIS", nom:"Manuel English for ever", prix:3500},
-      {matiere:"HIST-GÉO", nom:"Cahier d'habileté", prix:3000},
-      {matiere:"EDHC", nom:"Cahier d'habileté d'EDHC", prix:3000},
-      {matiere:"MATHS", nom:"Cahier + Manuel de la réussite Mathématique", prix:6000},
-      {matiere:"PHYSIQUE-CHIMIE", nom:"Cahier de la réussite Physique-Chimie 5ème", prix:3000},
-      {matiere:"SVT", nom:"Cahier de la réussite SVT 5ème", prix:3000},
-      {matiere:"EPS", nom:"Cahier d'activité", prix:1650},
-      {matiere:"INFORMATIQUE", nom:"Support de cours", prix:2000},
-      {matiere:"ENTREPRENEURIAT", nom:"Support de cours (disponible ultérieurement)", prix:3500},
-    ], options:[
-      {nom:"Musique (cahier + flûte)", prix:4000},
-      {nom:"Arts Plastiques (fournitures)", prix:8500},
-    ]},
-  { nom:"4ème", base:[
-      {matiere:"FRANÇAIS", nom:"Les frasques d'Ebinto", prix:4600},
-      {matiere:"FRANÇAIS", nom:"On se chamaille pour un siège", prix:2100},
-      {matiere:"FRANÇAIS", nom:"Cahier d'habileté", prix:3000},
-      {matiere:"ANGLAIS", nom:"Livre WIN SKILLS", prix:3000},
-      {matiere:"ANGLAIS", nom:"Livret d'activité WIN SKILLS", prix:3000},
-      {matiere:"HIST-GÉO", nom:"Livret d'activité HG", prix:3000},
-      {matiere:"EDHC", nom:"Cahier d'habileté d'EDHC", prix:3000},
-      {matiere:"MATHS", nom:"Cahier + Manuel de la réussite Mathématique", prix:3000},
-      {matiere:"PHYSIQUE-CHIMIE", nom:"Cahier de la réussite Physique-Chimie 4ème", prix:3000},
-      {matiere:"SVT", nom:"Les cahiers de la réussite 4ème", prix:3000},
-      {matiere:"EPS", nom:"Cahier d'activité", prix:1650},
-      {matiere:"INFORMATIQUE", nom:"Support de cours", prix:2000},
-      {matiere:"ENTREPRENEURIAT", nom:"Support de cours à acheter ultérieurement", prix:3500},
-    ], options:[
-      {nom:"Musique (cahier + flûte)", prix:4000},
-      {nom:"Arts Plastiques (fournitures)", prix:8500},
-      {nom:"Allemand (Hallo Zusammen)", prix:3000},
-      {nom:"Espagnol (Hablo Español)", prix:3500},
-    ]},
-  { nom:"3ème", base:[
-      {matiere:"FRANÇAIS", nom:"Maeva", prix:2500},
-      {matiere:"FRANÇAIS", nom:"L'ordonnance", prix:2100},
-      {matiere:"FRANÇAIS", nom:"Cahier d'habileté", prix:3000},
-      {matiere:"ANGLAIS", nom:"Livre WIN SKILLS", prix:3000},
-      {matiere:"ANGLAIS", nom:"Livret d'activité WIN SKILLS", prix:3000},
-      {matiere:"HIST-GÉO", nom:"Livret d'activité HG", prix:3000},
-      {matiere:"EDHC", nom:"Cahier d'habileté d'EDHC", prix:3000},
-      {matiere:"MATHS", nom:"Cahier + Manuel de la réussite Mathématique", prix:3000},
-      {matiere:"PHYSIQUE-CHIMIE", nom:"Cahier d'habileté (collection Atome)", prix:3000},
-      {matiere:"SVT", nom:"Cahier de la réussite SVT 3ème", prix:3000},
-      {matiere:"EPS", nom:"Cahier d'activité", prix:1650},
-      {matiere:"INFORMATIQUE", nom:"Support de cours", prix:2000},
-      {matiere:"ENTREPRENEURIAT", nom:"Support de cours à acheter ultérieurement", prix:3500},
-    ], options:[
-      {nom:"Musique (cahier + flûte)", prix:4000},
-      {nom:"Arts Plastiques (fournitures)", prix:8500},
-      {nom:"Allemand (Hallo Zusammen + Übung macht den meister)", prix:6000},
-      {nom:"Espagnol (Hablo Español)", prix:3500},
-    ]},
-  { nom:"2nde A", base:[
-      {matiere:"FRANÇAIS", nom:"Au-delà des tourments", prix:2500},
-      {matiere:"FRANÇAIS", nom:"Candide de Voltaire", prix:3850},
-      {matiere:"FRANÇAIS", nom:"En route pour le BAC (résumé + commentaire)", prix:6000},
-      {matiere:"ANGLAIS", nom:"Far Ahead", prix:6500},
-      {matiere:"HIST-GÉO", nom:"Apprendre par l'exercice", prix:3000},
-      {matiere:"MATHS", nom:"Pyramide (manuel)", prix:3500},
-      {matiere:"PHYSIQUE-CHIMIE", nom:"Les cahiers de la réussite 2ndeA", prix:3000},
-      {matiere:"SVT", nom:"Cahier de la réussite 2ndeA", prix:3000},
-      {matiere:"EPS", nom:"Cahier d'activité", prix:1850},
-    ], options:[
-      {nom:"Allemand (Ihr Und Wir plus 3)", prix:10000},
-      {nom:"Espagnol (Hablo Español)", prix:3500},
-    ]},
-  { nom:"2nde C", base:[
-      {matiere:"FRANÇAIS", nom:"Au-delà des tourments", prix:2500},
-      {matiere:"FRANÇAIS", nom:"Candide de Voltaire", prix:3750},
-      {matiere:"FRANÇAIS", nom:"En route pour le BAC (résumé + commentaire)", prix:6000},
-      {matiere:"ANGLAIS", nom:"Far Ahead", prix:6500},
-      {matiere:"HIST-GÉO", nom:"Apprendre par l'exercice", prix:3000},
-      {matiere:"MATHS", nom:"Pyramide (manuel)", prix:3500},
-      {matiere:"PHYSIQUE-CHIMIE", nom:"Les cahiers de la réussite 2ndeC", prix:3000},
-      {matiere:"SVT", nom:"Cahier de la réussite 2ndeC", prix:3000},
-      {matiere:"EPS", nom:"Cahier d'activité", prix:1850},
-    ], options:[
-      {nom:"Allemand (Ihr Und Wir plus 3)", prix:10000},
-      {nom:"Espagnol (Hablo Español)", prix:3500},
-    ]},
-  { nom:"1ère A", base:[
-      {matiere:"FRANÇAIS", nom:"La ronde des jours", prix:2000},
-      {matiere:"FRANÇAIS", nom:"Antigone", prix:5600},
-      {matiere:"FRANÇAIS", nom:"En route pour le BAC (résumé + commentaire + dissertation)", prix:9000},
-      {matiere:"PHILOSOPHIE", nom:"Cahier d'Activités de Philosophie", prix:3000},
-      {matiere:"ANGLAIS", nom:"Far Ahead", prix:6500},
-      {matiere:"HIST-GÉO", nom:"Cahier de la réussite", prix:3000},
-      {matiere:"MATHS", nom:"Pyramide (manuel)", prix:3500},
-      {matiere:"EPS", nom:"Cahier d'activité", prix:1850},
-    ], options:[
-      {nom:"Allemand (Ihr Und Wir plus 3)", prix:10000},
-      {nom:"Espagnol (Hablo Español)", prix:4000},
-    ]},
-  { nom:"1ère C", base:[
-      {matiere:"FRANÇAIS", nom:"En route pour le BAC (résumé + commentaire + dissertation)", prix:9000},
-      {matiere:"FRANÇAIS", nom:"La ronde des jours", prix:2000},
-      {matiere:"FRANÇAIS", nom:"Antigone", prix:5600},
-      {matiere:"PHILOSOPHIE", nom:"Cahier d'Activités de Philosophie", prix:3000},
-      {matiere:"ANGLAIS", nom:"Far Ahead", prix:6200},
-      {matiere:"HIST-GÉO", nom:"Cahier de la réussite", prix:3000},
-      {matiere:"MATHS", nom:"Pyramide (manuel)", prix:3500},
-      {matiere:"PHYSIQUE-CHIMIE", nom:"Cahiers de la réussite Physique + Chimie", prix:6000},
-      {matiere:"SVT", nom:"Cahier de la réussite", prix:3000},
-      {matiere:"EPS", nom:"Cahier d'activité", prix:1850},
-    ], options:[]},
-  { nom:"1ère D", base:[
-      {matiere:"FRANÇAIS", nom:"En route pour le BAC (résumé + commentaire + dissertation)", prix:9000},
-      {matiere:"FRANÇAIS", nom:"La ronde des jours", prix:2000},
-      {matiere:"FRANÇAIS", nom:"Antigone", prix:5600},
-      {matiere:"PHILOSOPHIE", nom:"Cahier d'Activités de Philosophie", prix:3000},
-      {matiere:"ANGLAIS", nom:"Far Ahead", prix:6200},
-      {matiere:"HIST-GÉO", nom:"Cahier de la réussite", prix:3000},
-      {matiere:"MATHS", nom:"Pyramide (manuel)", prix:3500},
-      {matiere:"PHYSIQUE-CHIMIE", nom:"Cahiers de la réussite Physique + Chimie", prix:6000},
-      {matiere:"SVT", nom:"Cahier de la réussite", prix:3000},
-      {matiere:"EPS", nom:"Cahier d'activité", prix:1850},
-    ], options:[]},
-  { nom:"Tle A", base:[
-      {matiere:"FRANÇAIS", nom:"Pigments", prix:5900},
-      {matiere:"FRANÇAIS", nom:"Pour le bonheur des miens", prix:3750},
-      {matiere:"FRANÇAIS", nom:"En route pour le BAC (résumé + commentaire + dissertation)", prix:9000},
-      {matiere:"PHILOSOPHIE", nom:"Cahier d'activité", prix:3000},
-      {matiere:"ANGLAIS", nom:"Far Ahead", prix:6700},
-      {matiere:"HIST-GÉO", nom:"Cahier de la réussite", prix:3000},
-      {matiere:"MATHS", nom:"Pyramide (manuel)", prix:3500},
-      {matiere:"EPS", nom:"Cahier d'activité", prix:1850},
-    ], options:[
-      {nom:"Allemand (Ihr Und Wir plus 3)", prix:10000},
-      {nom:"Espagnol (Hablo Español)", prix:4000},
-    ]},
-  { nom:"Tle C", base:[
-      {matiere:"FRANÇAIS", nom:"En route pour le BAC (résumé + commentaire + dissertation)", prix:9000},
-      {matiere:"FRANÇAIS", nom:"Pour le bonheur des miens", prix:3850},
-      {matiere:"PHILOSOPHIE", nom:"Philosophie Tle toutes séries — Cahier de compétence", prix:3000},
-      {matiere:"ANGLAIS", nom:"Far Ahead", prix:6700},
-      {matiere:"HIST-GÉO", nom:"Cahier de la réussite", prix:3000},
-      {matiere:"MATHS", nom:"Pyramide (manuel)", prix:3500},
-      {matiere:"MATHS", nom:"Livre CIAM (SM)", prix:9000},
-      {matiere:"PHYSIQUE-CHIMIE", nom:"Cahier d'habileté", prix:3000},
-      {matiere:"SVT", nom:"Cahier de la réussite", prix:3000},
-      {matiere:"EPS", nom:"Cahier d'activité", prix:1850},
-    ], options:[]},
-  { nom:"Tle D", base:[
-      {matiere:"FRANÇAIS", nom:"En route pour le BAC (résumé + commentaire + dissertation)", prix:9000},
-      {matiere:"FRANÇAIS", nom:"Pour le bonheur des miens", prix:3850},
-      {matiere:"PHILOSOPHIE", nom:"Philosophie Tle toutes séries — Cahier de compétence", prix:3500},
-      {matiere:"ANGLAIS", nom:"Far Ahead", prix:6700},
-      {matiere:"HIST-GÉO", nom:"Cahier de la réussite", prix:3000},
-      {matiere:"MATHS", nom:"Pyramide (manuel)", prix:3500},
-      {matiere:"MATHS", nom:"Top Chrono Tle D", prix:3000},
-      {matiere:"PHYSIQUE-CHIMIE", nom:"Cahier d'habileté", prix:3000},
-      {matiere:"SVT", nom:"Cahier de la réussite", prix:3000},
-      {matiere:"EPS", nom:"Cahier d'activité", prix:1850},
-    ], options:[]},
-];
-
 let DATA = null;
 let currentView = 'dashboard';
 let editingFournisseur = null;
@@ -451,13 +268,7 @@ function defaultData(){
     fournisseurs: [],
     ventes: [],
     commandes: [],
-    depenses: [],
-    livresNiveaux: DEFAULT_LIVRES_NIVEAUX.map(n => ({
-      id: uid(), nom: n.nom,
-      base: n.base.map(l=>({...l})),
-      options: n.options.map(o=>({...o}))
-    })),
-    ventesLivres: []
+    depenses: []
   };
 }
 
@@ -491,15 +302,6 @@ async function saveData(){
 function migrateData(){
   let changed = false;
   if(!DATA.depenses){ DATA.depenses = []; changed = true; }
-  if(!DATA.livresNiveaux){
-    DATA.livresNiveaux = DEFAULT_LIVRES_NIVEAUX.map(n => ({
-      id: uid(), nom: n.nom,
-      base: n.base.map(l=>({...l})),
-      options: n.options.map(o=>({...o}))
-    }));
-    changed = true;
-  }
-  if(!DATA.ventesLivres){ DATA.ventesLivres = []; changed = true; }
   // Réparer le lien kit <-> stock : clé stable par position (ordre fixe des 15 premiers articles)
   DEFAULT_COMPO_HEADERS.forEach((key, i)=>{
     if(DATA.articles[i] && DATA.articles[i].compoKey === undefined){ DATA.articles[i].compoKey = key; changed = true; }
@@ -530,12 +332,11 @@ function showToast(msg){
 function fmt(n){ return Math.round(n).toLocaleString('fr-FR'); }
 
 async function resetData(){
-  const ok = confirm("⚠️ ATTENTION\n\nTout remettre à zéro va SUPPRIMER définitivement :\n- toutes les ventes (fournitures et livres)\n- toutes les commandes\n- toutes les dépenses\net remettre TOUT le stock à 0.\n\nLes kits, les prix et les fournisseurs sont conservés.\n\nCette action est irréversible. Continuer ?");
+  const ok = confirm("⚠️ ATTENTION\n\nTout remettre à zéro va SUPPRIMER définitivement :\n- toutes les ventes\n- toutes les commandes\n- toutes les dépenses\net remettre TOUT le stock à 0.\n\nLes kits, les prix et les fournisseurs sont conservés.\n\nCette action est irréversible. Continuer ?");
   if(!ok) return;
   DATA.ventes = [];
   DATA.commandes = [];
   DATA.depenses = [];
-  DATA.ventesLivres = [];
   DATA.articles.forEach(a=>{ a.stock = 0; });
   await saveData();
   showToast("Tout est remis à zéro — prêt à démarrer");
@@ -599,7 +400,6 @@ function render(){
   if(currentView==='dashboard') return renderDashboard(main);
   if(currentView==='kits') return renderKits(main);
   if(currentView==='ventes') return renderVentes(main);
-  if(currentView==='livres') return renderLivres(main);
   if(currentView==='journal') return renderJournal(main);
   if(currentView==='depenses') return renderDepenses(main);
   if(currentView==='stock') return renderStock(main);
@@ -860,165 +660,6 @@ function renderVentes(main){
       renderVentes(main);
     };
   });
-}
-
-// ---------- KITS LIVRES ----------
-function renderLivres(main){
-  const manqueCounts = {};
-  DATA.ventesLivres.forEach(v=>{
-    (v.manquants||[]).forEach(nom=>{ manqueCounts[nom] = (manqueCounts[nom]||0)+1; });
-  });
-  const manqueSorted = Object.entries(manqueCounts).sort((a,b)=>b[1]-a[1]);
-
-  main.innerHTML = `
-    <h2 class="page-title">Kits Livres</h2>
-    <p class="page-sub">Le catalogue des kits de manuels par niveau (Collège &amp; Lycée), et l'enregistrement des ventes. Décoche tout livre manquant au moment de la vente — le prix s'ajuste tout seul.</p>
-    <div class="card">
-      <h3>Enregistrer une vente de kit livre</h3>
-      <div class="toolbar">
-        <div class="field" style="margin-bottom:0;">
-          <label>Niveau</label>
-          <select id="lv-niveau">${DATA.livresNiveaux.map(n=>`<option value="${n.id}">${n.nom}</option>`).join('')}</select>
-        </div>
-        <div class="field" style="margin-bottom:0;">
-          <label>Quantité</label>
-          <input type="number" id="lv-qty" min="1" value="1" style="width:90px;">
-        </div>
-        <div class="field" style="margin-bottom:0;">
-          <label>Date</label>
-          <input type="date" id="lv-date" value="${new Date().toISOString().slice(0,10)}">
-        </div>
-      </div>
-      <div id="lv-options" style="margin:6px 0 16px;"></div>
-      <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
-        <button class="btn" id="lv-submit">Enregistrer la vente</button>
-        <span class="muted">Total du kit : <b id="lv-total" style="color:var(--navy-dark);">0 F</b></span>
-      </div>
-    </div>
-    ${manqueSorted.length ? `
-    <div class="card" style="border:1px solid var(--warn);">
-      <h3>Livres souvent indisponibles <span class="badge-count" style="background:var(--warn);">${manqueSorted.length}</span></h3>
-      <div class="table-scroll"><table><thead><tr><th>Livre / document</th><th class="num">Nombre de fois manquant</th></tr></thead><tbody>
-      ${manqueSorted.slice(0,15).map(([nom,n])=>`<tr class="row-alert"><td>${nom}</td><td class="num">${fmt(n)}</td></tr>`).join('')}
-      </tbody></table></div>
-    </div>` : ''}
-    <div class="card">
-      <h3>Historique des ventes de kits livres <span class="badge-count">${DATA.ventesLivres.length}</span></h3>
-      <div id="lv-hist"></div>
-    </div>
-    <div class="card">
-      <h3>Catalogue des kits par niveau</h3>
-      <div id="lv-catalogue"></div>
-    </div>
-  `;
-
-  const optsWrap = document.getElementById('lv-options');
-  const totalEl = document.getElementById('lv-total');
-  const niveauSel = document.getElementById('lv-niveau');
-  const qtyInput = document.getElementById('lv-qty');
-
-  function updateTotal(){
-    const niv = DATA.livresNiveaux.find(n=>n.id===niveauSel.value);
-    if(!niv) return;
-    const qty = parseInt(qtyInput.value)||1;
-    const baseChecked = [...optsWrap.querySelectorAll('[data-lv-base]:checked')].map(c=>niv.base[parseInt(c.dataset.lvBase)]);
-    const optChecked = [...optsWrap.querySelectorAll('[data-lv-opt]:checked')].map(c=>niv.options[parseInt(c.dataset.lvOpt)]);
-    const total = (baseChecked.reduce((s,l)=>s+l.prix,0) + optChecked.reduce((s,o)=>s+o.prix,0)) * qty;
-    totalEl.textContent = fmt(total) + ' F';
-  }
-
-  function refreshOptions(){
-    const niv = DATA.livresNiveaux.find(n=>n.id===niveauSel.value);
-    if(!niv){ optsWrap.innerHTML=''; return; }
-    const baseHtml = niv.base.map((l,i)=>`
-      <label style="display:flex; align-items:center; gap:6px; font-size:12.5px; font-weight:normal; color:var(--text); cursor:pointer;">
-        <input type="checkbox" data-lv-base="${i}" checked> ${l.nom} <span class="muted">(${fmt(l.prix)} F)</span>
-      </label>`).join('');
-    const optsHtml = niv.options.map((o,i)=>`
-      <label style="display:flex; align-items:center; gap:6px; font-size:12.5px; font-weight:normal; color:var(--text); cursor:pointer;">
-        <input type="checkbox" data-lv-opt="${i}"> ${o.nom} <span class="muted">(${fmt(o.prix)} F)</span>
-      </label>`).join('');
-    optsWrap.innerHTML = `
-      <label style="margin-bottom:8px;">Documents du kit <span class="muted" style="font-weight:normal; text-transform:none; letter-spacing:0;">— décoche ce qui manque en stock</span></label>
-      <div style="display:flex; flex-wrap:wrap; gap:10px 20px; margin-bottom:${niv.options.length?'14px':'0'};">${baseHtml}</div>
-      ${niv.options.length ? `<label style="margin-bottom:8px;">Options en plus</label>
-      <div style="display:flex; flex-wrap:wrap; gap:10px 20px;">${optsHtml}</div>` : ''}
-    `;
-    updateTotal();
-  }
-
-  niveauSel.onchange = refreshOptions;
-  qtyInput.oninput = updateTotal;
-  optsWrap.addEventListener('change', updateTotal);
-  refreshOptions();
-
-  document.getElementById('lv-submit').onclick = async ()=>{
-    const niv = DATA.livresNiveaux.find(n=>n.id===niveauSel.value);
-    if(!niv) return;
-    const qty = parseInt(qtyInput.value)||0;
-    const date = document.getElementById('lv-date').value || new Date().toISOString().slice(0,10);
-    if(qty<=0){ showToast('Quantité invalide'); return; }
-    const baseBoxes = [...optsWrap.querySelectorAll('[data-lv-base]')];
-    const baseChecked = baseBoxes.filter(c=>c.checked).map(c=>niv.base[parseInt(c.dataset.lvBase)]);
-    const manquants = baseBoxes.filter(c=>!c.checked).map(c=>niv.base[parseInt(c.dataset.lvBase)].nom);
-    const optChecked = [...optsWrap.querySelectorAll('[data-lv-opt]:checked')].map(c=>niv.options[parseInt(c.dataset.lvOpt)]);
-    const prixUnitaire = baseChecked.reduce((s,l)=>s+l.prix,0) + optChecked.reduce((s,o)=>s+o.prix,0);
-    DATA.ventesLivres.push({
-      id: uid(), date, niveauId: niv.id, niveauNom: niv.nom,
-      options: optChecked.map(o=>o.nom), manquants, qty, prixUnitaire, total: prixUnitaire*qty
-    });
-    await saveData();
-    showToast(manquants.length ? `Vente enregistrée — ${manquants.length} livre(s) manquant(s) notés` : 'Vente de kit livre enregistrée');
-    renderLivres(main);
-  };
-
-  const hist = document.getElementById('lv-hist');
-  if(DATA.ventesLivres.length===0){
-    hist.innerHTML = '<div class="empty">Aucune vente de kit livre pour l\'instant.</div>';
-  } else {
-    const sorted = [...DATA.ventesLivres].sort((a,b)=> b.date.localeCompare(a.date));
-    const totalRevenu = DATA.ventesLivres.reduce((s,v)=>s+v.total,0);
-    hist.innerHTML = `
-      <div class="table-scroll"><table><thead><tr><th>Date</th><th>Niveau</th><th>Options</th><th>Manquants</th><th class="num">Qté</th><th class="num">Prix unitaire</th><th class="num">Total</th><th></th></tr></thead><tbody>
-      ${sorted.map(v=>`<tr${v.manquants&&v.manquants.length?' class="row-alert"':''}>
-        <td>${v.date}</td><td>${v.niveauNom}</td>
-        <td>${v.options && v.options.length ? v.options.join(', ') : '<span class="muted">—</span>'}</td>
-        <td>${v.manquants && v.manquants.length ? `<span class="tag tag-warn">${v.manquants.join(', ')}</span>` : '<span class="muted">—</span>'}</td>
-        <td class="num">${fmt(v.qty)}</td>
-        <td class="num">${fmt(v.prixUnitaire)} F</td>
-        <td class="num"><b>${fmt(v.total)} F</b></td>
-        <td><button class="btn btn-danger btn-sm" data-del-lv="${v.id}">Annuler</button></td>
-      </tr>`).join('')}
-      </tbody></table></div>
-      <div style="text-align:right; margin-top:14px; font-weight:bold; color:var(--navy-dark);">Total encaissé (kits livres) : ${fmt(totalRevenu)} F</div>
-    `;
-    hist.querySelectorAll('[data-del-lv]').forEach(b=>{
-      b.onclick = async ()=>{
-        DATA.ventesLivres = DATA.ventesLivres.filter(v=>v.id!==b.dataset.delLv);
-        await saveData();
-        showToast('Vente annulée');
-        renderLivres(main);
-      };
-    });
-  }
-
-  const cat = document.getElementById('lv-catalogue');
-  cat.innerHTML = DATA.livresNiveaux.map(n=>{
-    const base = n.base.reduce((s,l)=>s+l.prix,0);
-    return `
-    <div style="border-top:1px solid var(--line); padding:16px 0;">
-      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
-        <b style="color:var(--navy-dark); font-size:13px;">${n.nom}</b>
-        <span class="muted" style="font-size:12px;">Base : <b style="color:var(--navy-dark);">${fmt(base)} F</b>${n.options.length? ' + options ci-dessous' : ''}</span>
-      </div>
-      <div class="table-scroll"><table><thead><tr><th>Matière</th><th>Document</th><th class="num">Prix</th></tr></thead><tbody>
-      ${n.base.map(l=>`<tr><td>${l.matiere}</td><td>${l.nom}</td><td class="num">${fmt(l.prix)} F</td></tr>`).join('')}
-      </tbody></table></div>
-      ${n.options.length ? `<div class="compo-grid" style="margin-top:10px;">
-        ${n.options.map(o=>`<div><span>${o.nom}</span> <b>${fmt(o.prix)} F</b></div>`).join('')}
-      </div>` : ''}
-    </div>`;
-  }).join('');
 }
 
 // ---------- JOURNAL DU JOUR (rapport de caisse) ----------
