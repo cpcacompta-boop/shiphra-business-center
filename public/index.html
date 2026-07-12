@@ -55,6 +55,8 @@
   nav button:hover{background:rgba(255,255,255,.07); color:#fff;}
   nav button.active{background:rgba(233,193,88,.14); color:#fff; font-weight:600; box-shadow:inset 3px 0 0 var(--gold-strong);}
   nav .ico{width:20px; text-align:center; font-size:15px; flex-shrink:0;}
+  .whoami-name{ font-size:12.5px; font-weight:700; color:#fff; }
+  .whoami-role{ font-size:10.5px; color:#C4A24A; text-transform:uppercase; letter-spacing:.8px; font-weight:700; margin-top:2px; }
   .foot{padding:14px 20px; font-size:10px; color:#8093B4; border-top:1px solid rgba(255,255,255,.10);}
 
   main{flex:1; padding:34px 42px; max-width:1200px; width:100%; height:100vh; overflow-y:auto;}
@@ -225,41 +227,73 @@
       <h1>Business Center<br>Gestion Fournitures</h1>
     </div>
     <nav id="nav"></nav>
-    <div class="foot">Données partagées avec l'équipe · sauvegarde auto · v4<button onclick="logout()" style="margin-top:12px; width:100%; background:rgba(255,255,255,.06); color:#C4CFE2; border:1px solid rgba(255,255,255,.14); border-radius:9px; padding:9px 12px; font-family:inherit; font-size:12px; font-weight:600; cursor:pointer;" onmouseover="this.style.background='rgba(255,255,255,.12)'" onmouseout="this.style.background='rgba(255,255,255,.06)'">&#128274; Se déconnecter</button></div>
+    <div class="foot">
+      <div id="nav-whoami" style="background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.14); border-radius:9px; padding:9px 12px; margin-bottom:10px; text-align:left;"></div>
+      Données partagées avec l'équipe · sauvegarde auto · v5<button onclick="logout()" style="margin-top:12px; width:100%; background:rgba(255,255,255,.06); color:#C4CFE2; border:1px solid rgba(255,255,255,.14); border-radius:9px; padding:9px 12px; font-family:inherit; font-size:12px; font-weight:600; cursor:pointer;" onmouseover="this.style.background='rgba(255,255,255,.12)'" onmouseout="this.style.background='rgba(255,255,255,.06)'">&#128274; Se déconnecter</button>
+    </div>
   </aside>
   <main id="main"></main>
 </div>
 <div class="toast" id="toast"></div>
 
 <script>
-// ================= VERROU D'ACCÈS (temporaire, côté navigateur) =================
+// ================= AUTHENTIFICATION (Superviseure / Agents) =================
+// La session (token + rôle) vient du serveur, obtenue via login.html.
 // Si personne n'est connecté, on renvoie vers la page de connexion AVANT tout affichage.
-// NOTE : sécurité légère (le mot de passe est dans login.html). La vraie protection
-// se fera côté serveur (route /api/login + /api/data protégée).
+let CURRENT_USER = null;
 (function(){
   try{
-    const auth = sessionStorage.getItem('shiphra_auth') || localStorage.getItem('shiphra_auth');
-    if(auth !== 'ok'){ window.location.replace('login.html'); }
-  }catch(e){ /* si le stockage est bloqué, on laisse passer pour ne pas bloquer l'app */ }
+    const raw = sessionStorage.getItem('shiphra_session') || localStorage.getItem('shiphra_session');
+    if(!raw){ window.location.replace('login.html'); return; }
+    CURRENT_USER = JSON.parse(raw);
+    if(!CURRENT_USER || !CURRENT_USER.token || !CURRENT_USER.role){ window.location.replace('login.html'); }
+  }catch(e){ window.location.replace('login.html'); }
 })();
 
+function authHeaders(){
+  return CURRENT_USER && CURRENT_USER.token ? { 'Authorization': 'Bearer ' + CURRENT_USER.token } : {};
+}
+
+// Vérifie auprès du serveur que la session est toujours valide (token non expiré / compte
+// toujours actif). Si ce n'est plus le cas, on renvoie proprement vers la connexion.
+async function verifySession(){
+  try{
+    const res = await fetch('/api/auth/me', { headers: authHeaders() });
+    if(!res.ok) throw new Error('session invalide');
+    const data = await res.json();
+    CURRENT_USER.role = data.role;
+    CURRENT_USER.nomComplet = data.nomComplet;
+  }catch(e){
+    logout();
+  }
+}
+
 function logout(){
-  try{ sessionStorage.removeItem('shiphra_auth'); localStorage.removeItem('shiphra_auth'); }catch(e){}
+  fetch('/api/auth/logout', { method:'POST', headers: authHeaders() }).catch(()=>{});
+  try{ sessionStorage.removeItem('shiphra_session'); localStorage.removeItem('shiphra_session'); }catch(e){}
   window.location.replace('login.html');
 }
 
 const VIEWS = [
-  {id:'dashboard', label:'Accueil', ico:'&#127968;'},
-  {id:'vendre', label:'Vendre', ico:'&#128722;'},
-  {id:'journal', label:'Recette du jour', ico:'&#128197;'},
-  {id:'depenses', label:'Dépenses', ico:'&#128181;'},
-  {id:'stock', label:'Mon stock', ico:'&#128230;'},
-  {id:'prevision', label:'Que commander ?', ico:'&#129518;'},
-  {id:'commandes', label:'Mes commandes', ico:'&#128203;'},
-  {id:'fournisseurs', label:'Fournisseurs', ico:'&#128666;'},
-  {id:'kits', label:'Mes kits', ico:'&#127890;'},
-  {id:'rapport', label:'Mon bilan', ico:'&#128200;'},
+  {id:'dashboard', label:'Accueil', ico:'&#127968;', roles:['superviseur','agent']},
+  {id:'vendre', label:'Vendre', ico:'&#128722;', roles:['agent']},
+  {id:'journal', label:'Recette du jour', ico:'&#128197;', roles:['superviseur','agent']},
+  {id:'depenses', label:'Dépenses', ico:'&#128181;', roles:['superviseur','agent']},
+  {id:'stock', label:'Mon stock', ico:'&#128230;', roles:['superviseur','agent']},
+  {id:'prevision', label:'Que commander ?', ico:'&#129518;', roles:['agent']},
+  {id:'commandes', label:'Mes commandes', ico:'&#128203;', roles:['agent']},
+  {id:'fournisseurs', label:'Fournisseurs', ico:'&#128666;', roles:['agent']},
+  {id:'kits', label:'Mes kits', ico:'&#127890;', roles:['agent']},
+  {id:'rapport', label:'Mon bilan', ico:'&#128200;', roles:['superviseur']},
+  {id:'comptes', label:'Comptes équipe', ico:'&#128101;', roles:['superviseur']},
 ];
+// Pages où la Superviseure peut seulement CONSULTER (aucune saisie/modif possible).
+const READONLY_FOR_SUPERVISEUR = ['depenses','stock'];
+
+function visibleViews(){
+  const role = CURRENT_USER ? CURRENT_USER.role : 'agent';
+  return VIEWS.filter(v => v.roles.includes(role));
+}
 
 const DEFAULT_COMPO_HEADERS = ["100P","200P","300P","PetitTP100P","TP100P","TP200P","TP300P","Etudiant200P","Etudiant300P","Recherche200P","Recherche300P","CopieDouble","BlocNote","Registre","Trousse"];
 const DEFAULT_COMPO_LABELS = {
@@ -770,13 +804,20 @@ function kitCost(niveau){
 function renderNav(){
   const nav = document.getElementById('nav');
   nav.innerHTML = '';
-  VIEWS.forEach(v=>{
+  const allowed = visibleViews();
+  if(!allowed.some(v=>v.id===currentView)) currentView = 'dashboard';
+  allowed.forEach(v=>{
     const b = document.createElement('button');
     b.className = v.id === currentView ? 'active' : '';
     b.innerHTML = `<span class="ico">${v.ico}</span> ${v.label}`;
     b.onclick = ()=>{ currentView = v.id; render(); closeSidebar(); };
     nav.appendChild(b);
   });
+  const whoBox = document.getElementById('nav-whoami');
+  if(whoBox && CURRENT_USER){
+    const roleLbl = CURRENT_USER.role === 'superviseur' ? 'Superviseure' : 'Agent';
+    whoBox.innerHTML = `<div class="whoami-name">${CURRENT_USER.nomComplet||CURRENT_USER.username}</div><div class="whoami-role">${roleLbl}</div>`;
+  }
 }
 
 function openSidebar(){
@@ -802,16 +843,41 @@ function render(){
   main.classList.remove('fade-in');
   void main.offsetWidth; // restart animation
   main.classList.add('fade-in');
-  if(currentView==='dashboard') return renderDashboard(main);
-  if(currentView==='kits') return renderKits(main);
-  if(currentView==='vendre') return renderVendre(main);
-  if(currentView==='journal') return renderJournal(main);
-  if(currentView==='depenses') return renderDepenses(main);
-  if(currentView==='stock') return renderStockPage(main);
-  if(currentView==='fournisseurs') return renderFournisseurs(main);
-  if(currentView==='commandes') return renderCommandes(main);
-  if(currentView==='prevision') return renderPrevision(main);
-  if(currentView==='rapport') return renderRapport(main);
+  if(currentView==='dashboard') renderDashboard(main);
+  else if(currentView==='kits') renderKits(main);
+  else if(currentView==='vendre') renderVendre(main);
+  else if(currentView==='journal') renderJournal(main);
+  else if(currentView==='depenses') renderDepenses(main);
+  else if(currentView==='stock') renderStockPage(main);
+  else if(currentView==='fournisseurs') renderFournisseurs(main);
+  else if(currentView==='commandes') renderCommandes(main);
+  else if(currentView==='prevision') renderPrevision(main);
+  else if(currentView==='rapport') renderRapport(main);
+  else if(currentView==='comptes') renderComptes(main);
+  if(CURRENT_USER && CURRENT_USER.role==='superviseur' && READONLY_FOR_SUPERVISEUR.includes(currentView)){
+    applyReadOnlyLock(main);
+  }
+}
+
+// Verrouille une page en lecture seule pour la Superviseure : elle peut consulter
+// (y compris chercher / changer d'onglet) mais ne peut ni saisir ni supprimer.
+function applyReadOnlyLock(main){
+  const banner = document.createElement('div');
+  banner.style.cssText = 'display:flex; align-items:center; gap:10px; background:var(--gold-bg); color:var(--gold); border:1px solid #EBD9AE; border-radius:11px; padding:10px 14px; margin-bottom:16px; font-size:12.5px; font-weight:600;';
+  banner.innerHTML = '&#128274; Mode lecture seule — en tant que Superviseure, tu peux consulter cette page mais pas la modifier.';
+  main.insertBefore(banner, main.firstChild);
+
+  main.querySelectorAll('input, select, textarea').forEach(el=>{
+    if(el.type === 'search') return; // on laisse la recherche/filtre fonctionner
+    el.disabled = true;
+  });
+  main.querySelectorAll('button').forEach(btn=>{
+    if(btn.classList.contains('tab-btn')) return; // on laisse changer d'onglet (Cahiers/Livres)
+    if(btn.id === 'j-today') return;
+    btn.disabled = true;
+    btn.style.opacity = '.5';
+    btn.style.cursor = 'not-allowed';
+  });
 }
 
 // ---------- DASHBOARD ----------
@@ -1403,6 +1469,111 @@ function renderStock(main, searchQuery){
     showToast('Stock mis à jour');
     renderStock(main, q);
   };
+}
+
+// ---------- COMPTES ÉQUIPE (réservé à la Superviseure) ----------
+async function renderComptes(main){
+  main.innerHTML = `
+    <h2 class="page-title">Comptes équipe</h2>
+    <p class="page-sub">Crée et gère les accès de tes agents. Chaque nouveau compte démarre avec le mot de passe temporaire <b>0000</b> — la personne devra le changer dès sa première connexion.</p>
+    <div class="card">
+      <h3>Ajouter un compte</h3>
+      <div class="toolbar">
+        <div class="field" style="margin-bottom:0;">
+          <label>Nom complet</label>
+          <input type="text" id="c-nom" placeholder="Ex : Aïcha Koné" style="width:220px;">
+        </div>
+        <div class="field" style="margin-bottom:0;">
+          <label>Identifiant</label>
+          <input type="text" id="c-user" placeholder="Ex : aicha" style="width:160px;">
+        </div>
+        <div class="field" style="margin-bottom:0;">
+          <label>Rôle</label>
+          <select id="c-role" style="width:150px;">
+            <option value="agent">Agent</option>
+            <option value="superviseur">Superviseure</option>
+          </select>
+        </div>
+        <button class="btn" id="c-submit">Créer le compte</button>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Comptes existants <span class="badge-count" id="c-count">0</span></h3>
+      <div id="c-list"></div>
+    </div>
+  `;
+
+  document.getElementById('c-submit').onclick = async ()=>{
+    const nomComplet = document.getElementById('c-nom').value.trim();
+    const username = document.getElementById('c-user').value.trim().toLowerCase();
+    const role = document.getElementById('c-role').value;
+    if(!nomComplet || !username){ showToast('Renseigne le nom et l\'identifiant'); return; }
+    try{
+      const res = await fetch('/api/users', {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json', ...authHeaders() },
+        body: JSON.stringify({ nomComplet, username, role })
+      });
+      const data = await res.json();
+      if(!res.ok || !data.ok){ showToast(data.error || 'Erreur lors de la création'); return; }
+      showToast(`Compte créé : ${username} — mot de passe temporaire 0000`);
+      document.getElementById('c-nom').value = '';
+      document.getElementById('c-user').value = '';
+      renderComptes(main);
+    }catch(e){ showToast('Impossible de contacter le serveur'); }
+  };
+
+  const list = document.getElementById('c-list');
+  const count = document.getElementById('c-count');
+  try{
+    const res = await fetch('/api/users', { headers: authHeaders() });
+    const users = await res.json();
+    count.textContent = users.length;
+    if(users.length===0){ list.innerHTML = '<div class="empty">Aucun compte pour l\'instant.</div>'; return; }
+    list.innerHTML = `<div class="table-scroll"><table><thead><tr><th>Nom</th><th>Identifiant</th><th>Rôle</th><th>Statut</th><th></th></tr></thead><tbody>
+      ${users.map(u=>`<tr>
+        <td>${u.nomComplet}</td>
+        <td class="muted">${u.username}</td>
+        <td>${u.role==='superviseur'?'Superviseure':'Agent'}</td>
+        <td>${u.active ? '<span class="tag tag-ok">Actif</span>' : '<span class="tag tag-warn">Désactivé</span>'}${u.mustChangePassword?' <span class="muted" style="font-size:11px;">(1ère connexion en attente)</span>':''}</td>
+        <td style="text-align:right; white-space:nowrap;">
+          <button class="btn btn-ghost btn-sm" data-reset="${u.username}">Réinitialiser mdp</button>
+          <button class="btn btn-ghost btn-sm" data-toggle="${u.username}" data-active="${u.active}">${u.active?'Désactiver':'Activer'}</button>
+          ${u.username===CURRENT_USER.username?'':'<button class="btn btn-ghost btn-sm" data-del="'+u.username+'">Supprimer</button>'}
+        </td>
+      </tr>`).join('')}
+    </tbody></table></div>`;
+
+    list.querySelectorAll('[data-reset]').forEach(b=>{
+      b.onclick = async ()=>{
+        const ok = await askConfirm({ title:'Réinitialiser le mot de passe ?', message:`Le compte <b>${b.dataset.reset}</b> devra se reconnecter avec le mot de passe temporaire <b>0000</b> et en choisir un nouveau.`, okLabel:'Oui, réinitialiser' });
+        if(!ok) return;
+        await fetch('/api/users/'+encodeURIComponent(b.dataset.reset), { method:'PATCH', headers:{ 'Content-Type':'application/json', ...authHeaders() }, body: JSON.stringify({ resetPassword:true }) });
+        showToast('Mot de passe réinitialisé à 0000');
+        renderComptes(main);
+      };
+    });
+    list.querySelectorAll('[data-toggle]').forEach(b=>{
+      b.onclick = async ()=>{
+        const nextActive = b.dataset.active !== 'true';
+        const res = await fetch('/api/users/'+encodeURIComponent(b.dataset.toggle), { method:'PATCH', headers:{ 'Content-Type':'application/json', ...authHeaders() }, body: JSON.stringify({ active: nextActive }) });
+        const data = await res.json();
+        if(!res.ok || !data.ok){ showToast(data.error || 'Action impossible'); return; }
+        renderComptes(main);
+      };
+    });
+    list.querySelectorAll('[data-del]').forEach(b=>{
+      b.onclick = async ()=>{
+        const ok = await askConfirm({ title:'Supprimer ce compte ?', message:`Le compte <b>${b.dataset.del}</b> sera supprimé définitivement.`, okLabel:'Oui, supprimer' });
+        if(!ok) return;
+        await fetch('/api/users/'+encodeURIComponent(b.dataset.del), { method:'DELETE', headers: authHeaders() });
+        showToast('Compte supprimé');
+        renderComptes(main);
+      };
+    });
+  }catch(e){
+    list.innerHTML = '<div class="empty">Impossible de charger les comptes.</div>';
+  }
 }
 
 // ---------- FOURNISSEURS ----------
@@ -2305,6 +2476,8 @@ function startKeepAlive(){
 
 (async function init(){
   initMobileNav();
+  // 0) Vérifie que la session est toujours valide côté serveur (sinon -> login.html)
+  await verifySession();
   // 1) Affiche l'appli TOUT DE SUITE (menu + tableau de bord), même si le serveur dort encore
   DATA = defaultData();
   try{ render(); }catch(e){ console.error('Init: échec 1er affichage', e); }
