@@ -1999,21 +1999,50 @@ function renderVentesLivres(main){
     if(!ref){ showToast('Choisis un article'); return; }
     if(qty<=0){ showToast('Vérifie la quantité'); return; }
     const heure = new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+
     if(kind==='pack'){
       const pk = packInfo();
+      // a) Un composant n'existe carrément pas dans le stock
       if(pk.missing.length){ showToast('Article manquant : '+pk.missing.join(', ')); return; }
+      // b) On vérifie qu'il y a assez de stock pour CHAQUE composant du pack
+      const manquants = [];
+      PACK_ARTS.components.forEach(c=>{
+        const a = DATA.articles.find(x=>x.nom===c.nom);
+        const besoin = c.q*qty;
+        if(a && a.stock < besoin){
+          manquants.push(`${a.nom} (besoin ${fmt(besoin)}, en stock ${fmt(a.stock)})`);
+        }
+      });
+      if(manquants.length){
+        const apercu = manquants.slice(0,3).join(' · ');
+        const reste = manquants.length>3 ? ` (+${manquants.length-3} autre(s))` : '';
+        showToast('Stock insuffisant : ' + apercu + reste);
+        return; // on n'enregistre rien
+      }
+      // c) Tout est bon : on retire réellement du stock
       PACK_ARTS.components.forEach(c=>{
         const a = DATA.articles.find(x=>x.nom===c.nom);
         if(a) a.stock -= c.q*qty;
       });
       DATA.ventesLivres.push({id:uid(), kind:'pack', livreNom:PACK_ARTS.nom, niveauId:livreNiveauFilter, qty, prixVente:pk.vente, prixAchat:pk.achat, components:PACK_ARTS.components, date, heure});
+
     } else if(kind==='livre'){
+      if(ref.stock < qty){
+        showToast(`Stock insuffisant : ${ref.nom} (en stock ${fmt(ref.stock)})`);
+        return;
+      }
       ref.stock -= qty;
       DATA.ventesLivres.push({id:uid(), kind:'livre', livreId:ref.id, livreNom:ref.nom, niveauId:ref.niveauId, qty, prixVente:ref.prixVente, prixAchat:livreAchat(ref), date, heure});
+
     } else {
+      if(ref.stock < qty){
+        showToast(`Stock insuffisant : ${ref.nom} (en stock ${fmt(ref.stock)})`);
+        return;
+      }
       ref.stock -= qty;
       DATA.ventesLivres.push({id:uid(), kind:'fourniture', articleId:ref.id, livreNom:ref.nom, niveauId:livreNiveauFilter, qty, prixVente:ref.prixVente, prixAchat:ref.prixAchat, date, heure});
     }
+
     await saveData();
     showToast(`Vente enregistrée : ${qty} × ${ref.nom}`);
     renderVentesLivres(main);
