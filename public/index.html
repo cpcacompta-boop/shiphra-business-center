@@ -737,14 +737,8 @@ function renderDashboard(main){
     ...rupturesLivres.map(l=>({nom:l.nom, type:'Livre', stock:l.stock, seuil:l.seuil}))
   ].sort((a,b)=> a.stock-b.stock);
   const totalKitsVendus = DATA.ventes.reduce((s,v)=>s+v.qty,0);
-  const caVentes = DATA.ventes.reduce((s,v)=>{
-    const niv = DATA.niveaux.find(n=>n.id===v.niveauId);
-    return s + (niv? niv.montant*v.qty : 0);
-  },0);
-  const coutVentes = DATA.ventes.reduce((s,v)=>{
-    const niv = DATA.niveaux.find(n=>n.id===v.niveauId);
-    return s + (niv? kitCost(niv)*v.qty : 0);
-  },0);
+  const caVentes = DATA.ventes.reduce((s,v)=> s + venteKitRecette(v), 0);
+  const coutVentes = DATA.ventes.reduce((s,v)=> s + venteKitCout(v), 0);
   const caLivres = (DATA.ventesLivres||[]).reduce((s,v)=>s+v.prixVente*v.qty,0);
   const coutLivres = (DATA.ventesLivres||[]).reduce((s,v)=>s+v.prixAchat*v.qty,0);
   const caTotal = caVentes + caLivres;
@@ -753,10 +747,7 @@ function renderDashboard(main){
   const today = new Date().toISOString().slice(0,10);
   const ventesJour = DATA.ventes.filter(v=>v.date===today);
   const kitsJour = ventesJour.reduce((s,v)=>s+v.qty,0);
-  const caJour = ventesJour.reduce((s,v)=>{
-    const niv = DATA.niveaux.find(n=>n.id===v.niveauId);
-    return s + (niv? niv.montant*v.qty : 0);
-  },0);
+  const caJour = ventesJour.reduce((s,v)=> s + venteKitRecette(v), 0);
   const detailJour = (DATA.ventesLivres||[]).filter(v=>v.date===today);
   const caDetailJour = detailJour.reduce((s,v)=>s+v.prixVente*v.qty,0);
   const nbDetailJour = detailJour.reduce((s,v)=>s+v.qty,0);
@@ -988,10 +979,8 @@ function renderVentes(main){
       const niv = DATA.niveaux.find(n=>n.id===v.niveauId);
       if(!groupes[v.date]) groupes[v.date] = {kits:0, recette:0, marge:0};
       groupes[v.date].kits += v.qty;
-      if(niv){
-        groupes[v.date].recette += niv.montant*v.qty;
-        groupes[v.date].marge += (niv.montant - kitCost(niv))*v.qty;
-      }
+      groupes[v.date].recette += venteKitRecette(v);
+      groupes[v.date].marge += venteKitRecette(v) - venteKitCout(v);
     });
     const dates = Object.keys(groupes).sort((a,b)=> b.localeCompare(a));
     const totalKits = dates.reduce((s,d)=>s+groupes[d].kits,0);
@@ -1009,8 +998,8 @@ function renderVentes(main){
   hist.innerHTML = `<div class="table-scroll"><table><thead><tr><th>Date</th><th>Heure</th><th>Niveau</th><th class="num">Kits</th><th class="num">Recette</th><th class="num">Bénéfice</th><th></th></tr></thead><tbody>
     ${sorted.map(v=>{
       const niv = DATA.niveaux.find(n=>n.id===v.niveauId);
-      const recette = niv? niv.montant*v.qty : 0;
-      const marge = niv? (niv.montant - kitCost(niv))*v.qty : 0;
+      const recette = venteKitRecette(v);
+      const marge = venteKitRecette(v) - venteKitCout(v);
       return `<tr><td>${v.date}</td><td>${v.heure||'—'}</td><td>${niv?niv.nom:'?'}</td><td class="num">${v.qty}</td><td class="num">${fmt(recette)} F</td><td class="num">${fmt(marge)} F</td>
       <td style="text-align:right;"><button class="btn btn-ghost btn-sm" data-del="${v.id}">Annuler</button></td></tr>`;
     }).join('')}
@@ -1061,8 +1050,8 @@ function renderJournal(main){
     // --- Kits ---
     const ventesJour = DATA.ventes.filter(v=>v.date===date).sort((a,b)=> (a.heure||'').localeCompare(b.heure||''));
     const kits = ventesJour.reduce((s,v)=>s+v.qty,0);
-    const recetteKits = ventesJour.reduce((s,v)=>{ const n=DATA.niveaux.find(x=>x.id===v.niveauId); return s+(n?n.montant*v.qty:0); },0);
-    const margeKits = ventesJour.reduce((s,v)=>{ const n=DATA.niveaux.find(x=>x.id===v.niveauId); return s+(n?(n.montant-kitCost(n))*v.qty:0); },0);
+    const recetteKits = ventesJour.reduce((s,v)=> s + venteKitRecette(v), 0);
+    const margeKits = ventesJour.reduce((s,v)=> s + (venteKitRecette(v) - venteKitCout(v)), 0);
     const parNiveau = {};
     ventesJour.forEach(v=>{ parNiveau[v.niveauId] = (parNiveau[v.niveauId]||0)+v.qty; });
     // --- Livres & Arts/Musique ---
@@ -1087,14 +1076,17 @@ function renderJournal(main){
       <div class="table-scroll"><table><thead><tr><th>Niveau</th><th class="num">Kits</th><th class="num">Recette</th></tr></thead><tbody>
       ${Object.keys(parNiveau).map(nid=>{
         const n = DATA.niveaux.find(x=>x.id===nid);
-        return `<tr><td>${n?n.nom:'?'}</td><td class="num">${fmt(parNiveau[nid])}</td><td class="num">${fmt((n?n.montant:0)*parNiveau[nid])} F</td></tr>`;
+        const recetteNiv = ventesJour
+          .filter(v=>v.niveauId===nid)
+          .reduce((s,v)=> s + venteKitRecette(v), 0);
+        return `<tr><td>${n?n.nom:'?'}</td><td class="num">${fmt(parNiveau[nid])}</td><td class="num">${fmt(recetteNiv)} F</td></tr>`;
       }).join('')}
       </tbody></table></div>
       <div style="font-weight:bold; color:var(--navy-dark); font-size:12px; margin:18px 0 6px;">Transactions de kits</div>
       <div class="table-scroll"><table><thead><tr><th>Heure</th><th>Niveau</th><th class="num">Kits</th><th class="num">Montant</th></tr></thead><tbody>
       ${ventesJour.map(v=>{
-        const n = DATA.niveaux.find(x=>x.id===v.niveauId);
-        return `<tr><td>${v.heure||'—'}</td><td>${n?n.nom:'?'}</td><td class="num">${v.qty}</td><td class="num">${fmt((n?n.montant:0)*v.qty)} F</td></tr>`;
+       const n = DATA.niveaux.find(x=>x.id===v.niveauId);
+        return `<tr><td>${v.heure||'—'}</td><td>${n?n.nom:'?'}</td><td class="num">${v.qty}</td><td class="num">${fmt(venteKitRecette(v))} F</td></tr>`;
       }).join('')}
       </tbody></table></div>`}
       ${detailJour.length===0 ? '' : `
@@ -1430,14 +1422,8 @@ function renderRapport(main){
     const depensesPeriode = DATA.depenses.filter(d=>d.date>=from && d.date<=to);
 
     const totalAchats = Math.round(commandesPeriode.reduce((s,c)=> s + c.lignes.reduce((ss,l)=>ss+l.qty*l.prixAchat,0), 0));
-    const ventesKits = ventesPeriode.reduce((s,v)=>{
-      const niv = DATA.niveaux.find(n=>n.id===v.niveauId);
-      return s + (niv? niv.montant*v.qty : 0);
-    },0);
-    const coutKits = ventesPeriode.reduce((s,v)=>{
-      const niv = DATA.niveaux.find(n=>n.id===v.niveauId);
-      return s + (niv? kitCost(niv)*v.qty : 0);
-    },0);
+    const ventesKits = ventesPeriode.reduce((s,v)=> s + venteKitRecette(v), 0);
+    const coutKits = ventesPeriode.reduce((s,v)=> s + venteKitCout(v), 0);
     const ventesLivresTot = ventesLivresPeriode.reduce((s,v)=>s+v.prixVente*v.qty,0);
     const coutLivresTot = ventesLivresPeriode.reduce((s,v)=>s+v.prixAchat*v.qty,0);
     // On arrondit ici, une seule fois, AVANT tous les calculs qui suivent.
@@ -1469,9 +1455,8 @@ function renderRapport(main){
     // ---- Totaux par jour, tous niveaux confondus (kits + livres/arts) ----
     const parJourMap = {};
     ventesPeriode.forEach(v=>{
-      const niv = DATA.niveaux.find(n=>n.id===v.niveauId);
-      const recette = niv? niv.montant*v.qty : 0;
-      const cout = niv? kitCost(niv)*v.qty : 0;
+      const recette = venteKitRecette(v);
+      const cout = venteKitCout(v);
       if(!parJourMap[v.date]) parJourMap[v.date] = {qty:0, recette:0, cout:0};
       parJourMap[v.date].qty += v.qty;
       parJourMap[v.date].recette += recette;
@@ -1513,8 +1498,7 @@ function renderRapport(main){
       }),
       ...ventesPeriode.map(v=>{
         const niv = DATA.niveaux.find(n=>n.id===v.niveauId);
-        const montant = niv? niv.montant*v.qty : 0;
-        return {date:v.date, type:'Vente', detail:`${v.qty} kit(s) ${niv?niv.nom:'?'}`, montant:montant};
+        return {date:v.date, type:'Vente', detail:`${v.qty} kit(s) ${niv?niv.nom:'?'}`, montant: venteKitRecette(v)};
       }),
       ...ventesLivresPeriode.map(v=>{
         const niv = DATA.niveaux.find(n=>n.id===v.niveauId);
