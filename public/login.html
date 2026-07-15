@@ -306,6 +306,18 @@
     }catch(e){ /* session illisible : on reste sur la connexion */ }
   })();
 
+  // Si la personne vient d'être déconnectée (autre appareil, compte coupé...),
+  // on lui explique clairement pourquoi.
+  (function(){
+    try{
+      const msg = sessionStorage.getItem('shiphra_logout_msg');
+      if(msg){
+        sessionStorage.removeItem('shiphra_logout_msg');
+        setTimeout(()=> showAlert('login-alert','login-alert-msg', msg), 100);
+      }
+    }catch(e){}
+  })();
+
   const loginForm = document.getElementById('login-form');
   const submitBtn = document.getElementById('submit-btn');
   const btnLabel = document.getElementById('btn-label');
