@@ -1975,24 +1975,30 @@ async function renderCommande(main){
 
     <div class="card">
       <h3>Ajouter des livres / arts (à l'unité)</h3>
-      <p class="muted" style="font-size:12.5px; margin:-4px 0 10px;">Coche tout ce que le parent veut, ajuste les quantités, puis ajoute tout d'un coup.</p>
-      <div class="toolbar">
-        <div class="field" style="margin-bottom:0;"><label>Classe</label>
-          <select id="cmd-fclasse" style="min-width:140px;">
-            <option value="">Toutes les classes</option>
-            ${DATA.niveaux.map(n=>`<option value="${n.id}">${n.nom}</option>`).join('')}
-          </select>
+      <p class="muted" style="font-size:12.5px; margin:-4px 0 10px;">Ouvre la liste, coche ce que le parent veut, puis ajoute tout d'un coup.</p>
+
+      <div id="cmd-dd-wrap" style="position:relative;">
+        <button type="button" id="cmd-dd-btn" style="width:100%; display:flex; align-items:center; justify-content:space-between; gap:10px; padding:13px 16px; border:1.5px solid var(--line); border-radius:12px; background:#fff; cursor:pointer; font-size:14.5px; font-weight:600; color:var(--navy-dark); text-align:left;">
+          <span id="cmd-dd-label">&#128218; Choisir des livres / fournitures…</span>
+          <span id="cmd-dd-arrow" style="color:var(--muted); font-size:12px;">&#9660;</span>
+        </button>
+
+        <div id="cmd-dd-panel" style="display:none; position:absolute; z-index:60; left:0; right:0; top:calc(100% + 6px); background:#fff; border:1.5px solid var(--line); border-radius:12px; box-shadow:0 14px 40px rgba(11,31,58,.18); overflow:hidden;">
+          <div style="padding:10px; border-bottom:1px solid var(--line); display:flex; gap:8px; flex-wrap:wrap;">
+            <select id="cmd-fclasse" style="flex:0 0 auto; min-width:130px; padding:8px 10px; border:1px solid var(--line); border-radius:9px;">
+              <option value="">Toutes les classes</option>
+              ${DATA.niveaux.map(n=>`<option value="${n.id}">${n.nom}</option>`).join('')}
+            </select>
+            <input type="search" id="cmd-fsearch" placeholder="Rechercher un livre..." style="flex:1; min-width:140px; padding:8px 10px; border:1px solid var(--line); border-radius:9px;">
+          </div>
+          <div id="cmd-ilist" style="max-height:320px; overflow-y:auto;"></div>
+          <div style="padding:10px; border-top:1px solid var(--line); display:flex; align-items:center; gap:10px; background:var(--bg-soft);">
+            <span class="muted" id="cmd-isummary" style="font-size:12.5px;"></span>
+            <div style="flex:1;"></div>
+            <button type="button" class="btn btn-ghost btn-sm" id="cmd-iclear">Tout décocher</button>
+            <button type="button" class="btn btn-sm" id="cmd-iadd">Ajouter au panier</button>
+          </div>
         </div>
-        <div class="field" style="margin-bottom:0; flex:1; min-width:170px;"><label>Rechercher</label>
-          <input type="search" id="cmd-fsearch" placeholder="Nom du livre / fourniture..." style="width:100%;">
-        </div>
-      </div>
-      <div id="cmd-ilist" style="margin-top:10px;"></div>
-      <div style="margin-top:12px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
-        <span class="muted" id="cmd-isummary"></span>
-        <div style="flex:1;"></div>
-        <button class="btn btn-ghost btn-sm" id="cmd-iclear">Tout décocher</button>
-        <button class="btn" id="cmd-iadd">Ajouter les articles cochés</button>
       </div>
     </div>
 
@@ -2051,11 +2057,19 @@ async function renderCommande(main){
   function updateISummary(){
     const refs = Object.keys(coches).filter(r=>coches[r]>0);
     const el = document.getElementById('cmd-isummary');
-    if(!el) return;
-    if(refs.length===0){ el.textContent = 'Aucun article coché'; return; }
+    const lbl = document.getElementById('cmd-dd-label');
     const all = detailDispo();
     const tot = refs.reduce((s,r)=>{ const it=all.find(x=>x.ref===r); return s + (it? it.prixUnit*coches[r] : 0); },0);
-    el.innerHTML = `<b>${refs.length}</b> article(s) coché(s) · ${fmt(tot)} F`;
+    const nbUnites = refs.reduce((s,r)=>s+coches[r],0);
+    // Résumé lisible directement sur le bouton, même liste fermée
+    if(lbl){
+      lbl.innerHTML = refs.length
+        ? `&#128218; <b>${refs.length}</b> article(s) coché(s) · ${fmt(tot)} F`
+        : '&#128218; Choisir des livres / fournitures…';
+    }
+    if(el){
+      el.innerHTML = refs.length ? `<b>${fmt(nbUnites)}</b> unité(s) · ${fmt(tot)} F` : 'Aucun article coché';
+    }
   }
   function drawIList(){
     const box = document.getElementById('cmd-ilist');
@@ -2067,19 +2081,18 @@ async function renderCommande(main){
     if(q) items = items.filter(it=> it.nom.toLowerCase().includes(q));
     if(detailDispo().length===0){ box.innerHTML='<div class="empty">Aucun livre ni fourniture en stock dans ta boutique. Demande un transfert au Gérant.</div>'; updateISummary(); return; }
     if(items.length===0){ box.innerHTML='<div class="empty">Aucun article ne correspond à ta recherche.</div>'; updateISummary(); return; }
-    box.innerHTML = `<div class="table-scroll"><table><thead><tr>
-        <th style="width:36px;"><input type="checkbox" id="cmd-iall" title="Tout cocher"></th>
-        <th>Article</th><th>Classe</th><th style="text-align:right;">Prix</th><th style="text-align:right;">En boutique</th><th style="text-align:right;">Quantité</th>
-      </tr></thead><tbody>
-      ${items.map(it=>{ const on = (coches[it.ref]||0)>0; return `<tr>
-        <td><input type="checkbox" data-chk="${it.ref}" ${on?'checked':''}></td>
-        <td>${it.nom}</td>
-        <td class="muted">${it.classe||'—'}</td>
-        <td style="text-align:right;">${fmt(it.prixUnit)} F</td>
-        <td style="text-align:right;">${fmt(it.dispo)}</td>
-        <td style="text-align:right;"><input type="number" min="1" max="${it.dispo}" value="${coches[it.ref]||1}" data-qte="${it.ref}" data-dispo="${it.dispo}" style="width:80px; text-align:right;" ${on?'':'disabled'}></td>
-      </tr>`; }).join('')}
-    </tbody></table></div>`;
+    box.innerHTML = items.map(it=>{
+      const on = (coches[it.ref]||0)>0;
+      return `<label style="display:flex; align-items:center; gap:10px; padding:9px 12px; border-bottom:1px solid var(--line); cursor:pointer; ${on?'background:var(--gold-bg);':''}">
+        <input type="checkbox" data-chk="${it.ref}" ${on?'checked':''} style="width:17px; height:17px; flex:0 0 auto;">
+        <span style="flex:1; min-width:0;">
+          <span style="display:block; font-size:13.5px; font-weight:600; color:var(--navy-dark); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${it.nom}</span>
+          <span style="display:block; font-size:11.5px; color:var(--muted);">${it.classe||'—'} · ${fmt(it.prixUnit)} F · reste ${fmt(it.dispo)}</span>
+        </span>
+        <input type="number" min="1" max="${it.dispo}" value="${coches[it.ref]||1}" data-qte="${it.ref}" data-dispo="${it.dispo}"
+          style="width:64px; text-align:right; padding:5px 6px; border:1px solid var(--line); border-radius:7px; flex:0 0 auto;" ${on?'':'disabled'}>
+      </label>`;
+    }).join('');
 
     box.querySelectorAll('[data-chk]').forEach(chk=>{
       chk.onchange = ()=>{
@@ -2100,13 +2113,27 @@ async function renderCommande(main){
         updateISummary();
       };
     });
-    const all = document.getElementById('cmd-iall');
-    if(all) all.onchange = ()=>{
-      items.forEach(it=>{ if(all.checked) coches[it.ref] = coches[it.ref]||1; else delete coches[it.ref]; });
-      drawIList();
-    };
     updateISummary();
   }
+
+  // --- Ouverture / fermeture de la liste déroulante ---
+  const ddBtn = document.getElementById('cmd-dd-btn');
+  const ddPanel = document.getElementById('cmd-dd-panel');
+  const ddArrow = document.getElementById('cmd-dd-arrow');
+  function ouvrirDD(ouvrir){
+    ddPanel.style.display = ouvrir ? 'block' : 'none';
+    ddArrow.innerHTML = ouvrir ? '&#9650;' : '&#9660;';
+    ddBtn.style.borderColor = ouvrir ? 'var(--navy-dark)' : 'var(--line)';
+    if(ouvrir){ drawIList(); setTimeout(()=>{ const s=document.getElementById('cmd-fsearch'); if(s) s.focus(); }, 30); }
+  }
+  ddBtn.onclick = (e)=>{ e.stopPropagation(); ouvrirDD(ddPanel.style.display === 'none'); };
+  // Un clic en dehors referme la liste (comportement attendu partout)
+  document.addEventListener('click', (e)=>{
+    const wrap = document.getElementById('cmd-dd-wrap');
+    if(wrap && !wrap.contains(e.target) && ddPanel.style.display === 'block') ouvrirDD(false);
+  });
+  ddPanel.onclick = (e)=> e.stopPropagation();
+
   document.getElementById('cmd-fsearch').oninput = drawIList;
   document.getElementById('cmd-fclasse').onchange = drawIList;
   const locSelCmd = document.getElementById('cmd-loc');
@@ -2129,7 +2156,9 @@ async function renderCommande(main){
     });
     if(ajoutes>0){
       Object.keys(coches).forEach(k=>delete coches[k]);
+      const s = document.getElementById('cmd-fsearch'); if(s) s.value = '';
       drawIList();
+      ouvrirDD(false); // la liste se referme : l'écran reste léger
       refreshCmd();
       showToast(ajoutes+' article(s) ajouté(s) au panier');
     }
