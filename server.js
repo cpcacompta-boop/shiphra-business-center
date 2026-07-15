@@ -48,6 +48,19 @@ const DEFAULT_PASSWORD = '0000';
 // Sessions en mémoire (token -> { username, role, nomComplet, localiteId })
 const sessions = new Map();
 
+// Une session est considérée VIVANTE si elle a donné signe de vie récemment.
+// (L'application envoie un signal toutes les 5 secondes via /api/sync.)
+const DELAI_SESSION_VIVANTE_MS = 30 * 1000; // 30 secondes
+function sessionVivante(username){
+  const maintenant = Date.now();
+  for(const [tok, s] of sessions){
+    if(s.username === username && (maintenant - (s.lastSeen || 0)) < DELAI_SESSION_VIVANTE_MS){
+      return { token: tok, session: s };
+    }
+  }
+  return null;
+}
+
 // Quand une session est coupée (compte désactivé, ou connexion depuis un autre
 // appareil), on garde la RAISON un moment pour l'expliquer clairement à la
 // personne au lieu d'un simple "non authentifié".
@@ -223,14 +236,27 @@ app.post('/api/auth/login', async (req, res) => {
     const ok = verifyPassword(password, user.password_hash, user.password_salt);
     if (!ok) return res.status(401).json({ error: 'Identifiant ou mot de passe incorrect.' });
 
+    // SÉCURITÉ : un compte = un seul appareil. Si ce compte est DÉJÀ ouvert et
+    // actif ailleurs, on REFUSE la connexion. La personne peut quand même
+    // forcer (si c'est bien elle) : dans ce cas l'autre page sera fermée.
+    const dejaOuverte = sessionVivante(user.username);
+    if (dejaOuverte && req.body.force !== true) {
+      const depuis = Math.round((Date.now() - (dejaOuverte.session.lastSeen || 0)) / 1000);
+      return res.status(409).json({
+        error: 'Ce compte est déjà ouvert sur un autre appareil (actif il y a ' + depuis + ' s). Ferme-le d\'abord, ou force la connexion ici.',
+        code: 'SESSION_ACTIVE',
+        peutForcer: true
+      });
+    }
+
     const token = makeToken();
-    // SÉCURITÉ : un compte = un seul appareil à la fois. Toute autre session
-    // ouverte (autre téléphone, autre navigateur) est coupée immédiatement.
-    // L'ancienne page sera renvoyée à la connexion en moins de 5 secondes.
-    purgeUserSessions(user.username, 'Ton compte vient d\'être utilisé sur un autre appareil. Pour ta sécurité, cette page a été déconnectée.');
+    // Toute autre session de ce compte est fermée immédiatement (l'ancienne
+    // page sera renvoyée à la connexion en moins de 5 secondes).
+    purgeUserSessions(user.username, 'Ton compte vient d\'être ouvert sur un autre appareil. Pour ta sécurité, cette page a été fermée.');
     sessions.set(token, {
       username: user.username, role: user.role,
-      nomComplet: user.nom_complet, localiteId: user.localite_id || null
+      nomComplet: user.nom_complet, localiteId: user.localite_id || null,
+      lastSeen: Date.now()
     });
 
     res.json({
@@ -299,6 +325,9 @@ app.get('/api/auth/me', requireAuth, (req, res) => {
 // immédiatement, même s'il était en train de travailler.
 app.get('/api/sync', requireAuth, async (req, res) => {
   try {
+    // Signal de vie : c'est ce qui permet de savoir qu'une page est réellement
+    // ouverte et utilisée, donc de bloquer une 2e connexion ailleurs.
+    req.session.lastSeen = Date.now();
     const r = await pool.query(
       'SELECT nom_complet, role, localite_id, active FROM users WHERE username=$1',
       [req.session.username]
