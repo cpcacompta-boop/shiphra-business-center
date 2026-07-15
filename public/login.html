@@ -295,15 +295,18 @@
   }
   function clearAlert(boxId){ document.getElementById(boxId).classList.remove('show'); }
 
-  // Si une session valide existe déjà, on ne redemande pas la connexion :
-  // on renvoie directement vers l'application (comportement des applis pro).
+  // La page de connexion s'affiche TOUJOURS : c'est indispensable pour qu'un
+  // autre employe (vendeur, caissier, superviseur) puisse se connecter sur le
+  // meme appareil. On se contente de pre-remplir l'identifiant du dernier
+  // utilisateur, pour lui faire gagner du temps.
   (function(){
     try{
       const raw = localStorage.getItem('shiphra_session') || sessionStorage.getItem('shiphra_session');
       if(!raw) return;
       const s = JSON.parse(raw);
-      if(s && s.token && s.role){ window.location.replace('/app'); }
-    }catch(e){ /* session illisible : on reste sur la connexion */ }
+      const el = document.getElementById('identifiant');
+      if(s && s.username && el && !el.value) el.value = s.username;
+    }catch(e){ /* session illisible : on ignore */ }
   })();
 
   // Si la personne vient d'être déconnectée (autre appareil, compte coupé...),
@@ -331,8 +334,8 @@
   let pendingUser = null;
   let usedPassword = '';
 
-  loginForm.addEventListener('submit', async (e)=>{
-    e.preventDefault();
+  // Tente la connexion. force=true => on ferme l'autre page ouverte ailleurs.
+  async function tenterConnexion(force){
     clearAlert('login-alert');
     const username = document.getElementById('identifiant').value.trim();
     const password = pw.value;
@@ -356,10 +359,22 @@
       const res = await fetch(API + '/api/auth/login', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ username, password })
+        body: JSON.stringify({ username, password, force: !!force })
       });
       clearTimeout(reveil); clearTimeout(reveil2);
       const data = await res.json();
+      // Compte deja ouvert ailleurs : on BLOQUE, mais on propose de forcer.
+      if(res.status === 409 && data.code === 'SESSION_ACTIVE'){
+        showAlert('login-alert','login-alert-msg',
+          data.error +
+          '<div style="margin-top:10px;">' +
+          '<button type="button" id="force-btn" style="padding:9px 14px; border:0; border-radius:9px; background:#0B1F3A; color:#fff; font-weight:700; font-size:13px; cursor:pointer;">Forcer la connexion ici (fermer l\'autre page)</button>' +
+          '</div>');
+        setLoading(submitBtn, btnLabel, false, 'Connexion…', 'Se connecter');
+        const fb = document.getElementById('force-btn');
+        if(fb) fb.onclick = ()=> tenterConnexion(true);
+        return;
+      }
       if(!res.ok || !data.ok){
         showAlert('login-alert','login-alert-msg', data.error || 'Identifiant ou mot de passe incorrect.');
         setLoading(submitBtn, btnLabel, false, 'Connexion…', 'Se connecter');
@@ -382,6 +397,11 @@
       showAlert('login-alert','login-alert-msg','Impossible de contacter le serveur. Réessaie.');
       setLoading(submitBtn, btnLabel, false, 'Connexion…', 'Se connecter');
     }
+  }
+
+  loginForm.addEventListener('submit', (e)=>{
+    e.preventDefault();
+    tenterConnexion(false);
   });
 
   const changeForm = document.getElementById('change-form');
