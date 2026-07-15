@@ -289,9 +289,11 @@ async function verifySession(){
   }
 }
 
-function logout(){
+function logout(raison){
   fetch('/api/auth/logout', { method:'POST', headers: authHeaders() }).catch(()=>{});
   try{ sessionStorage.removeItem('shiphra_session'); localStorage.removeItem('shiphra_session'); }catch(e){}
+  // On explique pourquoi la personne a été déconnectée (au lieu de la laisser perplexe)
+  try{ if(raison) sessionStorage.setItem('shiphra_logout_msg', raison); }catch(e){}
   window.location.replace('/');
 }
 
@@ -3873,10 +3875,101 @@ function isTyping(){
   return el && ['INPUT','SELECT','TEXTAREA'].includes(el.tagName);
 }
 
+// ================= VERROUILLAGE AUTOMATIQUE (sécurité) =================
+// Si la page reste 4 minutes sans aucune manipulation, elle se verrouille.
+// Il faut retaper le mot de passe pour reprendre : personne ne peut utiliser
+// le compte de quelqu'un d'autre sur une page laissée ouverte.
+const LOCK_DELAI_MS = 4 * 60 * 1000; // 4 minutes
+let derniereActivite = Date.now();
+let ecranVerrouille = false;
+
+function marquerActivite(){
+  if(!ecranVerrouille) derniereActivite = Date.now();
+}
+
+function verrouillerEcran(){
+  if(ecranVerrouille) return;
+  ecranVerrouille = true;
+  const nom = CURRENT_USER ? (CURRENT_USER.nomComplet || CURRENT_USER.username) : '';
+  const bg = document.createElement('div');
+  bg.id = 'lock-screen';
+  bg.style.cssText = 'position:fixed; inset:0; z-index:99999; background:linear-gradient(160deg,#0B1F3A,#123A63); display:flex; align-items:center; justify-content:center; padding:20px;';
+  bg.innerHTML = `
+    <div style="background:#fff; border-radius:18px; padding:28px 24px; max-width:380px; width:100%; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,.4);">
+      <div style="font-size:44px; line-height:1; margin-bottom:8px;">&#128274;</div>
+      <h2 style="margin:0 0 6px; font-size:19px; color:#0B1F3A;">Page verrouillée</h2>
+      <p style="margin:0 0 4px; font-size:13px; color:#6B7A90;">Inactivité de plus de 4 minutes.</p>
+      <p style="margin:0 0 18px; font-size:14px; font-weight:700; color:#0B1F3A;">${nom}</p>
+      <input type="password" id="lock-pass" placeholder="Ton mot de passe" autocomplete="current-password"
+        style="width:100%; padding:12px 14px; border:1.5px solid #DDE3EC; border-radius:11px; font-size:15px; margin-bottom:10px; box-sizing:border-box;">
+      <div id="lock-err" style="display:none; color:#C0392B; font-size:12.5px; margin-bottom:10px;"></div>
+      <button id="lock-ok" style="width:100%; padding:12px; border:0; border-radius:11px; background:#0B1F3A; color:#fff; font-size:15px; font-weight:700; cursor:pointer;">Déverrouiller</button>
+      <button id="lock-out" style="width:100%; padding:10px; margin-top:8px; border:0; border-radius:11px; background:transparent; color:#6B7A90; font-size:13px; cursor:pointer;">Se déconnecter</button>
+    </div>`;
+  document.body.appendChild(bg);
+  const pass = document.getElementById('lock-pass');
+  const err = document.getElementById('lock-err');
+  const btn = document.getElementById('lock-ok');
+  setTimeout(()=> pass.focus(), 50);
+
+  const tenter = async ()=>{
+    const v = pass.value;
+    if(!v){ err.textContent='Entre ton mot de passe.'; err.style.display='block'; return; }
+    btn.disabled = true; btn.textContent = 'Vérification...';
+    try{
+      const res = await fetch('/api/auth/verify-password', {
+        method:'POST', headers:{ 'Content-Type':'application/json', ...authHeaders() },
+        body: JSON.stringify({ password: v })
+      });
+      const data = await res.json();
+      if(res.status===401 && data.error && data.error.indexOf('désactivé')>=0){ logout(data.error); return; }
+      if(!res.ok || !data.ok){
+        err.textContent = data.error || 'Mot de passe incorrect.';
+        err.style.display = 'block';
+        pass.value=''; pass.focus();
+        btn.disabled=false; btn.textContent='Déverrouiller';
+        return;
+      }
+      deverrouillerEcran();
+    }catch(e){
+      err.textContent = 'Impossible de contacter le serveur.';
+      err.style.display='block';
+      btn.disabled=false; btn.textContent='Déverrouiller';
+    }
+  };
+  btn.onclick = tenter;
+  pass.onkeydown = (e)=>{ if(e.key==='Enter') tenter(); };
+  document.getElementById('lock-out').onclick = ()=> logout();
+}
+
+function deverrouillerEcran(){
+  const el = document.getElementById('lock-screen');
+  if(el) el.remove();
+  ecranVerrouille = false;
+  derniereActivite = Date.now();
+  showToast('Bon retour !');
+}
+
+function demarrerVerrouillageAuto(){
+  ['mousemove','mousedown','keydown','touchstart','scroll','click','input'].forEach(evt=>{
+    document.addEventListener(evt, marquerActivite, { passive:true });
+  });
+  setInterval(()=>{
+    if(!CURRENT_USER || ecranVerrouille) return;
+    if(Date.now() - derniereActivite >= LOCK_DELAI_MS) verrouillerEcran();
+  }, 1000);
+}
+
+
 async function realtimeCheckAccount(){
   try{
     const res = await fetch('/api/sync', { headers: authHeaders() });
-    if(res.status===401 || res.status===403){ logout(); return; }
+    if(res.status===401 || res.status===403){
+      let raison = null;
+      try{ const d = await res.json(); raison = d.raison || d.error || null; }catch(_){}
+      logout(raison);
+      return;
+    }
     if(!res.ok) return;
     const me = await res.json();
     const roleChanged = me.role !== CURRENT_USER.role;
@@ -3903,7 +3996,7 @@ async function realtimeCheckData(){
   // ou une réception en cours de préparation (pour ne pas effacer le brouillon).
   const modalOuverte = !!document.querySelector('.modal-bg');
   const receptionEnCours = (typeof receptionDraft !== 'undefined') && receptionDraft.length > 0;
-  if(realtimeBusy || isTyping() || modalOuverte || receptionEnCours) return;
+  if(realtimeBusy || isTyping() || modalOuverte || receptionEnCours || ecranVerrouille) return;
   try{
     const res = await fetch('/api/data/meta', { headers: authHeaders() });
     if(res.status===401 || res.status===403){ logout(); return; }
@@ -3921,11 +4014,13 @@ async function realtimeCheckData(){
 
 function startRealtime(){
   // Compte : toutes les 5 s -> désactivation / suppression / changement de rôle
-  // appliqués presque tout de suite, même si la personne est en train de travailler.
+  // ou connexion depuis un autre appareil : appliqués en moins de 5 secondes.
   realtimeCheckAccount();
   setInterval(realtimeCheckAccount, 5*1000);
   // Données : toutes les 6 s -> nouvelle réception / vente visible partout.
   setInterval(realtimeCheckData, 6*1000);
+  // Verrouillage de la page après 4 minutes sans manipulation.
+  demarrerVerrouillageAuto();
 }
 
 (async function init(){
