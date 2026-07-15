@@ -48,10 +48,29 @@ const DEFAULT_PASSWORD = '0000';
 // Sessions en mémoire (token -> { username, role, nomComplet, localiteId })
 const sessions = new Map();
 
+// Quand une session est coupée (compte désactivé, ou connexion depuis un autre
+// appareil), on garde la RAISON un moment pour l'expliquer clairement à la
+// personne au lieu d'un simple "non authentifié".
+const raisonsRevocation = new Map(); // token -> { raison, at }
+
+function revoquerToken(token, raison){
+  sessions.delete(token);
+  raisonsRevocation.set(token, { raison, at: Date.now() });
+  // On ne garde pas les raisons éternellement (nettoyage au-delà de 30 min)
+  if (raisonsRevocation.size > 500) {
+    const limite = Date.now() - 30 * 60 * 1000;
+    for (const [t, v] of raisonsRevocation) { if (v.at < limite) raisonsRevocation.delete(t); }
+  }
+}
+
 // Déconnecte immédiatement toutes les sessions ouvertes d'un utilisateur
-// (utilisé quand on le désactive ou le supprime : effet instantané).
-function purgeUserSessions(username){
-  for(const [tok, s] of sessions){ if(s.username === username) sessions.delete(tok); }
+// (utilisé quand on le désactive/supprime, ou qu'il se connecte ailleurs).
+function purgeUserSessions(username, raison, saufToken){
+  for(const [tok, s] of sessions){
+    if(s.username === username && tok !== saufToken){
+      revoquerToken(tok, raison || 'Session terminée.');
+    }
+  }
 }
 
 // ---------- Utilitaires mot de passe ----------
@@ -169,7 +188,13 @@ function requireAuth(req, res, next) {
   const authHeader = req.headers.authorization || '';
   const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
   const session = token ? sessions.get(token) : null;
-  if (!session) return res.status(401).json({ error: 'Non authentifié' });
+  if (!session) {
+    const rev = token ? raisonsRevocation.get(token) : null;
+    return res.status(401).json({
+      error: rev ? rev.raison : 'Non authentifié',
+      raison: rev ? rev.raison : null
+    });
+  }
   req.session = session;
   next();
 }
@@ -199,6 +224,10 @@ app.post('/api/auth/login', async (req, res) => {
     if (!ok) return res.status(401).json({ error: 'Identifiant ou mot de passe incorrect.' });
 
     const token = makeToken();
+    // SÉCURITÉ : un compte = un seul appareil à la fois. Toute autre session
+    // ouverte (autre téléphone, autre navigateur) est coupée immédiatement.
+    // L'ancienne page sera renvoyée à la connexion en moins de 5 secondes.
+    purgeUserSessions(user.username, 'Ton compte vient d\'être utilisé sur un autre appareil. Pour ta sécurité, cette page a été déconnectée.');
     sessions.set(token, {
       username: user.username, role: user.role,
       nomComplet: user.nom_complet, localiteId: user.localite_id || null
@@ -241,6 +270,25 @@ app.post('/api/auth/change-password', requireAuth, async (req, res) => {
   }
 });
 
+// --- Vérifier le mot de passe (déverrouillage de l'écran après inactivité) ---
+// Ne change PAS la session : la personne reprend son travail là où elle était.
+app.post('/api/auth/verify-password', requireAuth, async (req, res) => {
+  try {
+    const r = await pool.query('SELECT password_hash, password_salt, active FROM users WHERE username=$1', [req.session.username]);
+    if (r.rows.length === 0 || !r.rows[0].active) {
+      purgeUserSessions(req.session.username, 'Ce compte a été désactivé.');
+      return res.status(401).json({ error: 'Compte désactivé.' });
+    }
+    const u = r.rows[0];
+    const ok = verifyPassword(String(req.body.password || ''), u.password_hash, u.password_salt);
+    if (!ok) return res.status(401).json({ error: 'Mot de passe incorrect.' });
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('Erreur vérification mdp:', e);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
 app.get('/api/auth/me', requireAuth, (req, res) => {
   res.json({ ok: true, ...req.session });
 });
@@ -256,7 +304,7 @@ app.get('/api/sync', requireAuth, async (req, res) => {
       [req.session.username]
     );
     if (r.rows.length === 0 || !r.rows[0].active) {
-      purgeUserSessions(req.session.username);
+      purgeUserSessions(req.session.username, 'Ton accès a été retiré par le Gérant.');
       return res.status(401).json({ error: 'Accès révoqué' });
     }
     const u = r.rows[0];
@@ -413,7 +461,7 @@ app.patch('/api/users/:username', requireAuth, requireGerant, async (req, res) =
         return res.status(400).json({ error: 'Tu ne peux pas désactiver ton propre compte.' });
       }
       await pool.query('UPDATE users SET active=$1 WHERE username=$2', [req.body.active, username]);
-      if(req.body.active === false){ purgeUserSessions(username); } // déconnexion immédiate
+      if(req.body.active === false){ purgeUserSessions(username, 'Ton compte a été désactivé par le Gérant.'); } // déconnexion immédiate
     }
     if (ROLES.includes(req.body.role)) {
       const newRole = req.body.role;
@@ -467,7 +515,7 @@ app.delete('/api/users/:username', requireAuth, requireGerant, async (req, res) 
       return res.status(400).json({ error: 'Tu ne peux pas supprimer ton propre compte.' });
     }
     await pool.query('DELETE FROM users WHERE username=$1', [username]);
-    purgeUserSessions(username); // déconnexion immédiate
+    purgeUserSessions(username, 'Ton compte a été supprimé par le Gérant.'); // déconnexion immédiate
     killUserSessions(username); // éjecte tout de suite s'il était connecté
     res.json({ ok: true });
   } catch (e) {
