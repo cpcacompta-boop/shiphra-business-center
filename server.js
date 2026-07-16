@@ -1128,6 +1128,33 @@ app.post('/api/tx/retour-fournisseur', requireAuth, requireGerant, async (req, r
   }
 });
 
+// =========================================================
+//  ANTI-VEILLE : le serveur se réveille lui-même
+// =========================================================
+// Render endort le service après ~15 min sans visite. Ici, le serveur s'envoie
+// à lui-même une petite visite toutes les 5 minutes, via son adresse publique.
+// Cette visite passe par Render, qui la compte donc comme du trafic réel :
+// le compteur d'inactivité est remis à zéro et le service reste éveillé.
+function demarrerAutoReveil() {
+  // Render fournit automatiquement l'adresse publique du service.
+  const url = process.env.RENDER_EXTERNAL_URL || process.env.PUBLIC_URL;
+  if (!url) {
+    console.warn('Auto-réveil désactivé : adresse publique inconnue (RENDER_EXTERNAL_URL absente).');
+    return;
+  }
+  const cible = url.replace(/\/$/, '') + '/health';
+  const INTERVALLE = 5 * 60 * 1000; // 5 minutes, comme demandé
+  setInterval(async () => {
+    try {
+      const res = await fetch(cible, { method: 'GET' });
+      console.log('Auto-réveil OK (' + res.status + ') — le service reste éveillé.');
+    } catch (e) {
+      console.warn('Auto-réveil échoué :', e.message);
+    }
+  }, INTERVALLE);
+  console.log('Auto-réveil activé : visite toutes les 5 min sur ' + cible);
+}
+
 // --- Démarrage ---
 // On ouvre le port QUOI QU'IL ARRIVE : si l'initialisation de la base rencontre
 // un souci, le serveur démarre quand même (Render détecte le port) et l'erreur
@@ -1145,4 +1172,5 @@ init()
       pool.query('SELECT 1').catch(e => console.warn('Ping base échoué:', e.message));
     }, 4 * 60 * 1000);
     planifierSauvegardes(); // sauvegarde automatique quotidienne par email
+    demarrerAutoReveil();   // empêche Render d'endormir le service
   });
