@@ -945,12 +945,69 @@ app.post('/api/backup/now', requireAuth, requireGerant, async (req, res) => {
 app.get('/api/backup/download', requireAuth, requireGerant, async (req, res) => {
   try {
     const r = await pool.query('SELECT v FROM app_store WHERE k=$1', ['app-data']);
+    const locs = await pool.query('SELECT id, nom, active FROM localites ORDER BY created_at ASC');
     const jour = new Date().toISOString().slice(0, 10);
     res.setHeader('Content-Disposition', `attachment; filename="shiphra-sauvegarde-${jour}.json"`);
     res.setHeader('Content-Type', 'application/json');
-    res.send(JSON.stringify({ genereLe: new Date().toISOString(), donnees: r.rows[0] ? r.rows[0].v : null }, null, 2));
+    res.send(JSON.stringify({
+      genereLe: new Date().toISOString(),
+      version: 'v6',
+      donnees: r.rows[0] ? r.rows[0].v : null,
+      localites: locs.rows
+    }, null, 2));
   } catch (e) {
     res.status(500).json({ error: 'Téléchargement impossible' });
+  }
+});
+
+// --- RESTAURATION (déménagement de base / récupération après incident) ---
+// Le Gérant envoie un fichier de sauvegarde : on remet les données et les
+// localités en place. Les comptes ne sont PAS restaurés (les mots de passe ne
+// voyagent jamais) : ils se recréent en 1 minute dans « Comptes équipe ».
+app.post('/api/backup/restore', requireAuth, requireGerant, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { donnees, localites, confirmer } = req.body;
+    if (confirmer !== 'RESTAURER') return res.status(400).json({ error: 'Confirmation manquante.' });
+    if (!donnees || typeof donnees !== 'object') return res.status(400).json({ error: 'Fichier de sauvegarde invalide ou illisible.' });
+
+    await client.query('BEGIN');
+    // 1) Les localités d'abord : leurs identifiants sont utilisés par les stocks
+    if (Array.isArray(localites)) {
+      for (const l of localites) {
+        if (!l || !l.id || !l.nom) continue;
+        await client.query(
+          `INSERT INTO localites (id, nom, active) VALUES ($1,$2,$3)
+           ON CONFLICT (id) DO UPDATE SET nom = EXCLUDED.nom, active = EXCLUDED.active`,
+          [String(l.id), String(l.nom), l.active !== false]
+        );
+      }
+    }
+    // 2) Puis toutes les données de l'application
+    await client.query(
+      `INSERT INTO app_store (k, v, updated_at) VALUES ($1,$2, now())
+       ON CONFLICT (k) DO UPDATE SET v = EXCLUDED.v, updated_at = now()`,
+      ['app-data', donnees]
+    );
+    await client.query('COMMIT');
+
+    const resume = {
+      ventes: (donnees.ventes || []).length,
+      ventesLivres: (donnees.ventesLivres || []).length,
+      transactions: (donnees.commandesVente || []).length,
+      articles: (donnees.articles || []).length,
+      livres: (donnees.livres || []).length,
+      kits: (donnees.niveaux || []).length,
+      localites: Array.isArray(localites) ? localites.length : 0
+    };
+    console.log('Restauration effectuée par', req.session.username, resume);
+    res.json({ ok: true, resume });
+  } catch (e) {
+    try { await client.query('ROLLBACK'); } catch (_) {}
+    console.error('Erreur restauration:', e);
+    res.status(500).json({ error: 'Restauration impossible : ' + e.message });
+  } finally {
+    client.release();
   }
 });
 
@@ -975,6 +1032,101 @@ function planifierSauvegardes() {
   }, 30 * 60 * 1000);
   console.log('Sauvegarde quotidienne planifiée à ' + HEURE_SAUVEGARDE + 'h vers ' + BACKUP_EMAIL);
 }
+
+// --- 6) RETOUR : boutique -> grand stock (marchandise rendue au Gérant) ---
+app.post('/api/tx/retour-boutique', requireAuth, async (req, res) => {
+  try {
+    const { localiteId, localiteNom, lignes, motif } = req.body;
+    if (!localiteId || !Array.isArray(lignes) || lignes.length === 0) return res.status(400).json({ error: 'Retour vide.' });
+    // Un vendeur/caissier ne peut retourner QUE depuis sa propre boutique
+    if ((req.session.role === 'vente' || req.session.role === 'caisse') && req.session.localiteId !== localiteId) {
+      return res.status(403).json({ error: 'Boutique non autorisée.' });
+    }
+    const out = await withAppData(data => {
+      data.stockLoc = data.stockLoc || {};
+      data.stockLoc[localiteId] = data.stockLoc[localiteId] || {};
+      data.retours = data.retours || [];
+      const st = data.stockLoc[localiteId];
+      // Vérification avec les données FRAÎCHES du serveur
+      const manquants = [];
+      lignes.forEach(l => {
+        const ref = l.kind + ':' + l.id;
+        if ((st[ref] || 0) < l.qte) manquants.push(l.nom || ref);
+      });
+      if (manquants.length) { const err = new Error('STOCK_INSUFFISANT'); err.noms = manquants; throw err; }
+      // La boutique baisse, le grand stock remonte
+      lignes.forEach(l => {
+        const ref = l.kind + ':' + l.id;
+        st[ref] = (st[ref] || 0) - l.qte;
+        const coll = l.kind === 'art' ? data.articles : (data.livres || []);
+        const item = coll.find(x => x.id === l.id);
+        if (item) item.stock = (item.stock || 0) + l.qte;
+      });
+      data.retourSeq = (data.retourSeq || 0) + 1;
+      const now = new Date();
+      const r = {
+        id: newId(), type: 'boutique',
+        num: 'RB-' + now.toISOString().slice(0, 10).replace(/-/g, '') + '-' + String(data.retourSeq).padStart(4, '0'),
+        date: now.toLocaleDateString('fr-FR'), dateISO: now.toISOString().slice(0, 10),
+        heure: now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+        localiteId, localiteNom: localiteNom || '',
+        motif: String(motif || '').slice(0, 200),
+        lignes, totalQte: lignes.reduce((s, l) => s + l.qte, 0),
+        agent: req.session.nomComplet || req.session.username
+      };
+      data.retours.unshift(r);
+      return r;
+    });
+    res.json({ ok: true, retour: out });
+  } catch (e) {
+    if (e.message === 'STOCK_INSUFFISANT') return res.status(409).json({ error: 'Stock boutique insuffisant : ' + (e.noms || []).slice(0, 3).join(', ') });
+    console.error('Erreur retour boutique:', e);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
+
+// --- 7) RETOUR : grand stock -> fournisseur (marchandise rendue au fournisseur) ---
+app.post('/api/tx/retour-fournisseur', requireAuth, requireGerant, async (req, res) => {
+  try {
+    const { fournisseurId, fournisseurNom, lignes, motif } = req.body;
+    if (!Array.isArray(lignes) || lignes.length === 0) return res.status(400).json({ error: 'Retour vide.' });
+    const out = await withAppData(data => {
+      data.retours = data.retours || [];
+      const manquants = [];
+      lignes.forEach(l => {
+        const coll = l.kind === 'art' ? data.articles : (data.livres || []);
+        const item = coll.find(x => x.id === l.id);
+        if (!item || (item.stock || 0) < l.qte) manquants.push(l.nom || l.id);
+      });
+      if (manquants.length) { const err = new Error('STOCK_INSUFFISANT'); err.noms = manquants; throw err; }
+      lignes.forEach(l => {
+        const coll = l.kind === 'art' ? data.articles : (data.livres || []);
+        const item = coll.find(x => x.id === l.id);
+        item.stock -= l.qte;
+      });
+      data.retourSeq = (data.retourSeq || 0) + 1;
+      const now = new Date();
+      const r = {
+        id: newId(), type: 'fournisseur',
+        num: 'RF-' + now.toISOString().slice(0, 10).replace(/-/g, '') + '-' + String(data.retourSeq).padStart(4, '0'),
+        date: now.toLocaleDateString('fr-FR'), dateISO: now.toISOString().slice(0, 10),
+        heure: now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+        fournisseurId: fournisseurId || null, fournisseurNom: fournisseurNom || '',
+        motif: String(motif || '').slice(0, 200),
+        lignes, totalQte: lignes.reduce((s, l) => s + l.qte, 0),
+        totalMontant: lignes.reduce((s, l) => s + l.qte * (l.prixAchat || 0), 0),
+        agent: req.session.nomComplet || req.session.username
+      };
+      data.retours.unshift(r);
+      return r;
+    });
+    res.json({ ok: true, retour: out });
+  } catch (e) {
+    if (e.message === 'STOCK_INSUFFISANT') return res.status(409).json({ error: 'Grand stock insuffisant : ' + (e.noms || []).slice(0, 3).join(', ') });
+    console.error('Erreur retour fournisseur:', e);
+    res.status(500).json({ error: 'Erreur serveur.' });
+  }
+});
 
 // --- Démarrage ---
 // On ouvre le port QUOI QU'IL ARRIVE : si l'initialisation de la base rencontre
