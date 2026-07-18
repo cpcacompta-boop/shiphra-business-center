@@ -3873,6 +3873,7 @@ function drawPrevisionLivresStock(body, livres){
 // ---- Livres : méthode AN DERNIER (commandé − retours = vendu) ----
 function drawPrevisionLivresRetour(body, livres){
   let lastCalc=null;
+  const norm = str => (str==null?'':String(str)).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
   const byNiv={}; livres.forEach(l=>{ const nid=l.niveauId||'_none'; (byNiv[nid]=byNiv[nid]||[]).push(l); });
   const niveauxAvecLivres = DATA.niveaux.filter(n=>byNiv[n.id]&&byNiv[n.id].length);
 
@@ -3901,6 +3902,11 @@ function drawPrevisionLivresRetour(body, livres){
 
   body.innerHTML = `
     <div class="card">
+      <h3>Rechercher un livre</h3>
+      <input type="search" id="pl-ret-search" placeholder="&#128269; Tape le nom d'un livre (ex : Bienvenue, maths...)" autocomplete="off" style="width:100%; padding:11px 14px; font-size:14px; border:1px solid var(--line); border-radius:9px; box-sizing:border-box;">
+      <p class="page-sub" style="margin:8px 0 0;">La recherche affiche le livre même si sa classe n'est pas cochée.</p>
+    </div>
+    <div class="card">
       <h3>Choisis les classes à commander</h3>
       <div>${classesHtml || '<div class="empty">Aucun livre configuré.</div>'}</div>
     </div>
@@ -3908,12 +3914,41 @@ function drawPrevisionLivresRetour(body, livres){
       <h3>Commandé l'an dernier, retours &amp; ajout</h3>
       <p class="page-sub" style="margin-top:-2px;">Pour chaque livre : <b>Commandé an dernier</b> et <b>Retour</b> → le <b>Vendu</b> se calcule tout seul (Commandé − Retour). Tu peux ensuite mettre un <b>Ajout</b> pour commander plus. La commande finale = <b>Vendu + Ajout</b>.</p>
       ${tablesHtml}
-      <div id="pl-ret-empty" class="empty">Coche une ou plusieurs classes ci-dessus pour saisir les livres.</div>
+      <div id="pl-ret-empty" class="empty">Coche une ou plusieurs classes ci-dessus, ou utilise la recherche, pour saisir les livres.</div>
       <div style="text-align:right; margin-top:14px; font-weight:bold; font-size:15px; color:var(--navy-dark);">Total à commander (à payer au fournisseur) : <span id="prevl-total">0</span> F</div>
       <div id="prevl-fourn-recap"></div>
       <div style="margin-top:16px; display:flex; gap:10px; flex-wrap:wrap;"><button class="btn" id="prevl-save">&#128190; Enregistrer la commande</button><button class="btn btn-ghost" id="prevl-print">&#128424;&#65039; Imprimer</button></div>
     </div>
   `;
+
+  const emptyMsg=document.getElementById('pl-ret-empty');
+  const searchInp=document.getElementById('pl-ret-search');
+
+  const applyFilter=()=>{
+    const q=norm(searchInp?searchInp.value.trim():'');
+    let anyVisible=false;
+    body.querySelectorAll('.pl-cls').forEach(sec=>{
+      const cid=sec.dataset.clsSec;
+      const cb=body.querySelector('input[data-cls="'+cid+'"]');
+      if(q){
+        let anyRow=false;
+        sec.querySelectorAll('tr[data-livre]').forEach(tr=>{
+          const l=livres.find(x=>x.id===tr.dataset.livre);
+          const match=norm((l&&l.nom||'')+' '+(l&&l.matiere||'')).includes(q);
+          tr.style.display = match ? '' : 'none';
+          if(match) anyRow=true;
+        });
+        sec.style.display = anyRow ? 'block':'none';
+        if(anyRow) anyVisible=true;
+      } else {
+        sec.querySelectorAll('tr[data-livre]').forEach(tr=>{ tr.style.display=''; });
+        const show=!!(cb&&cb.checked);
+        sec.style.display = show ? 'block':'none';
+        if(show) anyVisible=true;
+      }
+    });
+    if(emptyMsg) emptyMsg.style.display = anyVisible ? 'none':'block';
+  };
 
   const rebuild=()=>{
     const rows=[];
@@ -3931,22 +3966,16 @@ function drawPrevisionLivresRetour(body, livres){
     });
     const totalCmd=rows.reduce((s,r)=>s + r.aCommander*livreAchat(r.livre),0);
     const tot=document.getElementById('prevl-total'); if(tot) tot.textContent=fmt(totalCmd);
-    lastCalc={ methode:'retour', rows, totalCmd };
     const rc=document.getElementById('prevl-fourn-recap'); if(rc) rc.innerHTML=recapFournisseurLivres(rows);
+    lastCalc={ methode:'retour', rows, totalCmd };
     return lastCalc;
   };
 
   body.querySelectorAll('input[data-cmd], input[data-ret], input[data-ajout]').forEach(inp=>{ inp.addEventListener('input', rebuild); });
+  body.querySelectorAll('input[data-cls]').forEach(cb=>{ cb.addEventListener('change', applyFilter); });
+  if(searchInp){ searchInp.addEventListener('input', applyFilter); }
 
-  const emptyMsg=document.getElementById('pl-ret-empty');
-  body.querySelectorAll('input[data-cls]').forEach(cb=>{
-    cb.addEventListener('change', ()=>{
-      const sec=body.querySelector('.pl-cls[data-cls-sec="'+cb.dataset.cls+'"]');
-      if(sec) sec.style.display = cb.checked ? 'block':'none';
-      if(emptyMsg) emptyMsg.style.display = body.querySelector('input[data-cls]:checked') ? 'none':'block';
-    });
-  });
-
+  applyFilter();
   rebuild();
 
   const sb=document.getElementById('prevl-save'); if(sb){ sb.onclick=()=>{ const c=rebuild(); if(!c.rows.length){ showToast('Saisis au moins un livre à commander'); return; } savePrevision(buildPrevisionRecordLivres(c), sb); }; }
