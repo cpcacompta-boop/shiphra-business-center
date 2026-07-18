@@ -3765,22 +3765,97 @@ function renderPrevision(main){
     // Regrouper par fournisseur
     const groups = {};
     rows.forEach(r=>{ const fid=r.article.fournisseurId||'_none'; (groups[fid]=groups[fid]||[]).push(r); });
-    const totalCmd = rows.reduce((s,r)=>s + r.aCommander*r.article.prixAchat, 0);
+    const totalCmd    = rows.reduce((s,r)=>s + r.aCommander*r.article.prixAchat, 0); // besoin − stock
+    const totalBesoin = rows.reduce((s,r)=>s + r.besoin*r.article.prixAchat, 0);      // besoin complet
 
     let html = '<div class="card"><h3>Détail par article — combien commander selon le stock</h3>';
     Object.keys(groups).forEach(fid=>{
       const fourn = DATA.fournisseurs.find(f=>f.id===fid);
       const label = fourn ? fourn.nom : 'Sans fournisseur assigné';
       html += `<div style="font-weight:bold; color:var(--navy-dark); font-size:12px; margin:14px 0 6px;">${label}</div>`;
-      html += '<div class="table-scroll"><table><thead><tr><th>Article</th><th class="num">Besoin</th><th class="num">Stock actuel</th><th class="num">À commander</th><th class="num">Montant</th></tr></thead><tbody>';
+      html += '<div class="table-scroll"><table><thead><tr><th>Article</th><th class="num">Besoin</th><th class="num">Stock actuel</th><th class="num">À commander</th><th class="num">Prix achat</th><th class="num">Montant</th></tr></thead><tbody>';
       groups[fid].forEach(r=>{
-        html += `<tr><td>${r.article.nom}</td><td class="num">${fmt(r.besoin)}</td><td class="num">${fmt(r.article.stock)}</td><td class="num"><b>${fmt(r.aCommander)}</b></td><td class="num">${fmt(r.aCommander*r.article.prixAchat)} F</td></tr>`;
+        html += `<tr><td>${r.article.nom}</td><td class="num">${fmt(r.besoin)}</td><td class="num">${fmt(r.article.stock)}</td><td class="num"><b>${fmt(r.aCommander)}</b></td><td class="num">${fmt(r.article.prixAchat)} F</td><td class="num">${fmt(r.aCommander*r.article.prixAchat)} F</td></tr>`;
       });
       html += '</tbody></table></div>';
     });
-    html += `<div style="text-align:right; margin-top:14px; font-weight:bold; color:var(--navy-dark);">Total à commander : ${fmt(totalCmd)} F</div>`;
+    html += `<div style="text-align:right; margin-top:14px; font-size:12px; color:var(--muted);">Total si tu commandes le besoin complet : <b style="color:var(--navy-dark);">${fmt(totalBesoin)} F</b></div>`;
+    html += `<div style="text-align:right; margin-top:4px; font-weight:bold; color:var(--navy-dark);">Total à commander (besoin − stock) : ${fmt(totalCmd)} F</div>`;
+    html += `<button class="btn" id="prev-print" style="margin-top:16px;">🖨️ Imprimer le bon de commande</button>`;
     html += '</div>';
     result.innerHTML = html;
+
+    // --- Impression du bon de commande prévisionnel (par fournisseur, les 2 colonnes) ---
+    const printBtn = document.getElementById('prev-print');
+    if(printBtn){
+      printBtn.onclick = ()=>{
+        const now = new Date();
+        const dateStr = now.toLocaleDateString('fr-FR');
+        const heureStr = now.toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' });
+        const parQui = (CURRENT_USER && (CURRENT_USER.nomComplet||CURRENT_USER.username)) || '—';
+
+        // Rappel des kits saisis par niveau (uniquement ceux > 0)
+        const kitsRecap = DATA.niveaux
+          .filter(n => (kitsByNiveau[n.id]||0) > 0)
+          .map(n => `${n.nom} : ${fmt(kitsByNiveau[n.id])}`)
+          .join(' &nbsp;·&nbsp; ');
+
+        let area = document.getElementById('print-area');
+        if(!area){ area = document.createElement('div'); area.id='print-area'; document.body.appendChild(area); }
+
+        let corps = '';
+        Object.keys(groups).forEach(fid=>{
+          const fourn = DATA.fournisseurs.find(f=>f.id===fid);
+          const label = fourn ? fourn.nom : 'Sans fournisseur assigné';
+          const sousTotalCmd = groups[fid].reduce((s,r)=>s + r.aCommander*r.article.prixAchat, 0);
+          corps += `<div class="p-sec-title">${label}</div>`;
+          corps += `<table style="width:100%; border-collapse:collapse; font-size:13px;">
+            <thead><tr>
+              <th style="text-align:left; padding:6px;">Article</th>
+              <th style="text-align:right; padding:6px;">Besoin</th>
+              <th style="text-align:right; padding:6px;">Stock</th>
+              <th style="text-align:right; padding:6px;">À commander</th>
+              <th style="text-align:right; padding:6px;">Prix achat</th>
+              <th style="text-align:right; padding:6px;">Montant</th>
+            </tr></thead>
+            <tbody>
+              ${groups[fid].map(r=>`<tr>
+                <td style="padding:6px;">${r.article.nom}</td>
+                <td style="padding:6px; text-align:right;">${fmt(r.besoin)}</td>
+                <td style="padding:6px; text-align:right;">${fmt(r.article.stock)}</td>
+                <td style="padding:6px; text-align:right; font-weight:bold;">${fmt(r.aCommander)}</td>
+                <td style="padding:6px; text-align:right;">${fmt(r.article.prixAchat)} F</td>
+                <td style="padding:6px; text-align:right;">${fmt(r.aCommander*r.article.prixAchat)} F</td>
+              </tr>`).join('')}
+              <tr>
+                <td colspan="5" style="padding:8px 6px; font-weight:bold; text-align:right;">Sous-total ${label}</td>
+                <td style="padding:8px 6px; text-align:right; font-weight:bold;">${fmt(sousTotalCmd)} F</td>
+              </tr>
+            </tbody>
+          </table>`;
+        });
+
+        area.innerHTML = `
+          <div class="p-head">
+            <h1>SHIPHRA Business Center</h1>
+            <div class="p-sub">BON DE COMMANDE PRÉVISIONNEL</div>
+            <div class="p-sub">Date : ${dateStr} ${heureStr} &nbsp;·&nbsp; Établi par : ${parQui}</div>
+            ${kitsRecap ? `<div class="p-sub">Kits prévus — ${kitsRecap}</div>` : ''}
+          </div>
+          ${corps}
+          <div style="margin-top:16px; text-align:right; font-size:13px; line-height:1.9;">
+            <div>Total si commande du besoin complet : <b>${fmt(totalBesoin)} F</b></div>
+            <div style="font-size:15px;">Total à commander (besoin − stock) : <b>${fmt(totalCmd)} F</b></div>
+          </div>
+          <div style="margin-top:40px; display:flex; justify-content:space-between; font-size:13px;">
+            <div style="width:45%;"><div style="border-top:1px solid #222; padding-top:6px;">Visa du responsable</div></div>
+            <div style="width:45%; text-align:right;"><div style="border-top:1px solid #222; padding-top:6px;">Signature du Gérant (Shiphra)</div></div>
+          </div>
+          <div class="p-sub" style="margin-top:20px;">Bon prévisionnel : les colonnes « Besoin » et « À commander » sont affichées — choisis ce que tu commandes réellement au fournisseur.</div>
+        `;
+        window.print();
+      };
+    }
   };
 }
 
