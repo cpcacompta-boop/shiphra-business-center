@@ -3853,7 +3853,7 @@ function drawPrevisionLivresStock(body, livres){
     const rows=livres.map(l=>{ const besoin=(elevesByNiveau[l.niveauId]||0); return {livre:l, besoin, base:(l.stock||0), aCommander:Math.max(besoin-(l.stock||0),0)}; }).filter(x=>x.besoin>0);
     const groups={}; rows.forEach(r=>{ const nid=r.livre.niveauId||'_none'; (groups[nid]=groups[nid]||[]).push(r); });
     const totalCmd=rows.reduce((s,r)=>s + r.aCommander*livreAchat(r.livre),0);
-    lastCalc={ elevesByNiveau, rows, totalCmd, baseLabel:'Stock', besoinLabel:'Besoin' };
+    lastCalc={ methode:'stock', elevesByNiveau, rows, totalCmd };
     let html='<div class="card"><h3>Détail par classe — combien de livres commander</h3>';
     DATA.niveaux.forEach(n=>{ const g=groups[n.id]; if(!g) return;
       html+=`<div style="font-weight:bold; color:var(--navy-dark); font-size:12px; margin:14px 0 6px;">${n.nom}</div>`;
@@ -3884,8 +3884,10 @@ function drawPrevisionLivresRetour(body, livres){
     const rowsH = byNiv[n.id].map(l=>{ const pa=livreAchat(l);
       return `<tr data-livre="${l.id}">
         <td>${l.nom}</td><td>${l.matiere||''}</td>
-        <td class="num"><input type="number" min="0" value="0" style="width:76px; text-align:right;" data-cmd="${l.id}"></td>
-        <td class="num"><input type="number" min="0" value="0" style="width:66px; text-align:right;" data-ret="${l.id}"></td>
+        <td class="num"><input type="number" min="0" value="0" style="width:72px; text-align:right;" data-cmd="${l.id}"></td>
+        <td class="num"><input type="number" min="0" value="0" style="width:62px; text-align:right;" data-ret="${l.id}"></td>
+        <td class="num" data-cell="vendu">0</td>
+        <td class="num"><input type="number" min="0" value="0" style="width:62px; text-align:right;" data-ajout="${l.id}"></td>
         <td class="num" data-cell="acmd"><b>0</b></td>
         <td class="num">${fmt(pa)} F</td>
         <td class="num" data-cell="mt">0 F</td>
@@ -3893,7 +3895,7 @@ function drawPrevisionLivresRetour(body, livres){
     }).join('');
     return `<div class="pl-cls" data-cls-sec="${n.id}" style="display:none;">
       <div style="font-weight:bold; color:var(--navy-dark); font-size:12px; margin:14px 0 6px;">${n.nom}</div>
-      <div class="table-scroll"><table><thead><tr><th>Livre</th><th>Matière</th><th class="num">Commandé an dernier</th><th class="num">Retour</th><th class="num">À commander</th><th class="num">Prix achat</th><th class="num">Montant</th></tr></thead><tbody>${rowsH}</tbody></table></div>
+      <div class="table-scroll"><table><thead><tr><th>Livre</th><th>Matière</th><th class="num">Commandé an dernier</th><th class="num">Retour</th><th class="num">Vendu</th><th class="num">Ajout</th><th class="num">À commander</th><th class="num">Prix achat</th><th class="num">Montant</th></tr></thead><tbody>${rowsH}</tbody></table></div>
     </div>`;
   }).join('');
 
@@ -3903,11 +3905,12 @@ function drawPrevisionLivresRetour(body, livres){
       <div>${classesHtml || '<div class="empty">Aucun livre configuré.</div>'}</div>
     </div>
     <div class="card">
-      <h3>Commandé l'an dernier &amp; retours</h3>
-      <p class="page-sub" style="margin-top:-2px;">Pour chaque livre : mets ce que tu as <b>commandé l'an dernier</b> et ce que tu as <b>retourné</b>. La commande = Commandé − Retour (calcul automatique).</p>
+      <h3>Commandé l'an dernier, retours &amp; ajout</h3>
+      <p class="page-sub" style="margin-top:-2px;">Pour chaque livre : <b>Commandé an dernier</b> et <b>Retour</b> → le <b>Vendu</b> se calcule tout seul (Commandé − Retour). Tu peux ensuite mettre un <b>Ajout</b> pour commander plus. La commande finale = <b>Vendu + Ajout</b>.</p>
       ${tablesHtml}
       <div id="pl-ret-empty" class="empty">Coche une ou plusieurs classes ci-dessus pour saisir les livres.</div>
       <div style="text-align:right; margin-top:14px; font-weight:bold; font-size:15px; color:var(--navy-dark);">Total à commander (à payer au fournisseur) : <span id="prevl-total">0</span> F</div>
+      <div id="prevl-fourn-recap"></div>
       <div style="margin-top:16px; display:flex; gap:10px; flex-wrap:wrap;"><button class="btn" id="prevl-save">&#128190; Enregistrer la commande</button><button class="btn btn-ghost" id="prevl-print">&#128424;&#65039; Imprimer</button></div>
     </div>
   `;
@@ -3918,18 +3921,22 @@ function drawPrevisionLivresRetour(body, livres){
       const id=tr.dataset.livre; const l=livres.find(x=>x.id===id); if(!l) return;
       const cmd=Math.max(parseInt(tr.querySelector('input[data-cmd]').value)||0,0);
       const ret=Math.max(parseInt(tr.querySelector('input[data-ret]').value)||0,0);
-      const aCmd=Math.max(cmd-ret,0); const pa=livreAchat(l);
+      const ajout=Math.max(parseInt(tr.querySelector('input[data-ajout]').value)||0,0);
+      const vendu=Math.max(cmd-ret,0);
+      const aCmd=vendu+ajout; const pa=livreAchat(l);
+      tr.querySelector('[data-cell="vendu"]').textContent=fmt(vendu);
       tr.querySelector('[data-cell="acmd"]').innerHTML='<b>'+fmt(aCmd)+'</b>';
       tr.querySelector('[data-cell="mt"]').textContent=fmt(aCmd*pa)+' F';
-      if(cmd>0 || aCmd>0){ rows.push({ livre:l, besoin:cmd, base:ret, aCommander:aCmd }); }
+      if(aCmd>0){ rows.push({ livre:l, commande:cmd, retour:ret, vendu, ajout, aCommander:aCmd }); }
     });
     const totalCmd=rows.reduce((s,r)=>s + r.aCommander*livreAchat(r.livre),0);
     const tot=document.getElementById('prevl-total'); if(tot) tot.textContent=fmt(totalCmd);
-    lastCalc={ elevesByNiveau:{}, rows, totalCmd, baseLabel:'Retour', besoinLabel:'Commandé an dernier' };
+    lastCalc={ methode:'retour', rows, totalCmd };
+    const rc=document.getElementById('prevl-fourn-recap'); if(rc) rc.innerHTML=recapFournisseurLivres(rows);
     return lastCalc;
   };
 
-  body.querySelectorAll('input[data-cmd], input[data-ret]').forEach(inp=>{ inp.addEventListener('input', rebuild); });
+  body.querySelectorAll('input[data-cmd], input[data-ret], input[data-ajout]').forEach(inp=>{ inp.addEventListener('input', rebuild); });
 
   const emptyMsg=document.getElementById('pl-ret-empty');
   body.querySelectorAll('input[data-cls]').forEach(cb=>{
@@ -3942,25 +3949,21 @@ function drawPrevisionLivresRetour(body, livres){
 
   rebuild();
 
-  const sb=document.getElementById('prevl-save'); if(sb){ sb.onclick=()=>{ const c=rebuild(); if(!c.rows.length){ showToast('Saisis au moins un livre (commandé plus grand que 0)'); return; } savePrevision(buildPrevisionRecordLivres(c), sb); }; }
+  const sb=document.getElementById('prevl-save'); if(sb){ sb.onclick=()=>{ const c=rebuild(); if(!c.rows.length){ showToast('Saisis au moins un livre à commander'); return; } savePrevision(buildPrevisionRecordLivres(c), sb); }; }
   const pb=document.getElementById('prevl-print'); if(pb){ pb.onclick=()=>{ const c=rebuild(); if(!c.rows.length){ showToast('Saisis au moins un livre'); return; } imprimerPrevision(buildPrevisionRecordLivres(c)); }; }
-}
-
-// Photo figée d'une commande FOURNITURES
-function buildPrevisionRecordFournitures(calc){
-  const now=new Date();
-  const kits = DATA.niveaux.filter(n=>(calc.kitsByNiveau[n.id]||0)>0).map(n=>({niveauId:n.id, nom:n.nom, nbKits:calc.kitsByNiveau[n.id]}));
-  const lignes = calc.rows.map(r=>{ const f=DATA.fournisseurs.find(x=>x.id===r.article.fournisseurId); return { articleId:r.article.id, nom:r.article.nom, fournisseurId:r.article.fournisseurId||null, fournisseurNom:f?f.nom:'Sans fournisseur assigné', besoin:r.besoin, stock:r.article.stock, aCommander:r.aCommander, prixAchat:r.article.prixAchat, montant:r.aCommander*r.article.prixAchat }; });
-  return { id:uid(), type:'fournitures', dateISO:now.toISOString(), date:now.toLocaleDateString('fr-FR'), heure:now.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}), auteur:(CURRENT_USER&&(CURRENT_USER.nomComplet||CURRENT_USER.username))||'—', kits, lignes, totalCmd:calc.totalCmd };
 }
 
 // Photo figée d'une commande LIVRES
 function buildPrevisionRecordLivres(calc){
   const now=new Date();
+  const retour = (calc.methode==='retour');
   const ev = calc.elevesByNiveau||{};
   const kits = DATA.niveaux.filter(n=>(ev[n.id]||0)>0).map(n=>({niveauId:n.id, nom:n.nom, nbKits:ev[n.id]}));
-  const lignes = calc.rows.map(r=>{ const niv=DATA.niveaux.find(n=>n.id===r.livre.niveauId); const pa=livreAchat(r.livre); return { livreId:r.livre.id, nom:r.livre.nom, matiere:r.livre.matiere||'', niveauId:r.livre.niveauId||null, classe:niv?niv.nom:'', besoin:r.besoin, base:r.base, stock:r.base, aCommander:r.aCommander, prixAchat:pa, montant:r.aCommander*pa }; });
-  return { id:uid(), type:'livres', besoinLabel:calc.besoinLabel||'Besoin', baseLabel:calc.baseLabel||'Stock', dateISO:now.toISOString(), date:now.toLocaleDateString('fr-FR'), heure:now.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}), auteur:(CURRENT_USER&&(CURRENT_USER.nomComplet||CURRENT_USER.username))||'—', kits, lignes, totalCmd:calc.totalCmd };
+  const lignes = calc.rows.map(r=>{ const niv=DATA.niveaux.find(n=>n.id===r.livre.niveauId); const pa=livreAchat(r.livre); const cls=niv?niv.nom:''; const f=DATA.fournisseurs.find(x=>x.id===r.livre.fournisseurId); const fNom=f?f.nom:'';
+    if(retour){ return { livreId:r.livre.id, nom:r.livre.nom, matiere:r.livre.matiere||'', niveauId:r.livre.niveauId||null, classe:cls, fournisseurId:r.livre.fournisseurId||null, fournisseurNom:fNom, commande:r.commande, retour:r.retour, vendu:r.vendu, ajout:r.ajout, aCommander:r.aCommander, prixAchat:pa, montant:r.aCommander*pa }; }
+    return { livreId:r.livre.id, nom:r.livre.nom, matiere:r.livre.matiere||'', niveauId:r.livre.niveauId||null, classe:cls, fournisseurId:r.livre.fournisseurId||null, fournisseurNom:fNom, besoin:r.besoin, stock:r.base, aCommander:r.aCommander, prixAchat:pa, montant:r.aCommander*pa };
+  });
+  return { id:uid(), type:'livres', methode:calc.methode||'stock', dateISO:now.toISOString(), date:now.toLocaleDateString('fr-FR'), heure:now.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}), auteur:(CURRENT_USER&&(CURRENT_USER.nomComplet||CURRENT_USER.username))||'—', kits, lignes, totalCmd:calc.totalCmd };
 }
 
 // Enregistre une commande (fournitures OU livres) DANS LA BASE
@@ -4006,70 +4009,41 @@ function renderPrevisionHist(type, containerId){
 function imprimerPrevision(rec){
   let area=document.getElementById('print-area');
   if(!area){ area=document.createElement('div'); area.id='print-area'; document.body.appendChild(area); }
-  const isLivres = rec.type==='livres';
+  if(rec.type==='livres'){ imprimerPrevisionLivres(rec, area); window.print(); return; }
+  // ----- FOURNITURES : un bon, regroupé par fournisseur -----
   const kitsRecap=(rec.kits||[]).map(k=>`${k.nom} : ${fmt(k.nbKits)}`).join(' &nbsp;·&nbsp; ');
   let corps='';
-  if(isLivres){
-    const groups={};
-    (rec.lignes||[]).forEach(l=>{ const k=l.classe||'Sans classe'; (groups[k]=groups[k]||[]).push(l); });
-    Object.keys(groups).forEach(label=>{
-      const sousTotal=groups[label].reduce((s,l)=>s+(l.montant||0),0);
-      corps+=`<div class="p-sec-title">${label}</div>`;
-      corps+=`<table style="width:100%; border-collapse:collapse; font-size:13px;"><thead><tr>
-        <th style="text-align:left; padding:6px;">Livre</th>
-        <th style="text-align:left; padding:6px;">Matière</th>
-        <th style="text-align:right; padding:6px;">${rec.besoinLabel||'Besoin'}</th>
-        <th style="text-align:right; padding:6px;">${rec.baseLabel||'Stock'}</th>
-        <th style="text-align:right; padding:6px;">À commander</th>
-        <th style="text-align:right; padding:6px;">Prix achat</th>
-        <th style="text-align:right; padding:6px;">Montant</th>
-      </tr></thead><tbody>
-        ${groups[label].map(l=>`<tr>
-          <td style="padding:6px;">${l.nom}</td>
-          <td style="padding:6px;">${l.matiere||''}</td>
-          <td style="padding:6px; text-align:right;">${fmt(l.besoin)}</td>
-          <td style="padding:6px; text-align:right;">${fmt(l.base!=null?l.base:(l.stock||0))}</td>
-          <td style="padding:6px; text-align:right; font-weight:bold;">${fmt(l.aCommander)}</td>
-          <td style="padding:6px; text-align:right;">${fmt(l.prixAchat)} F</td>
-          <td style="padding:6px; text-align:right;">${fmt(l.montant)} F</td>
-        </tr>`).join('')}
-        <tr><td colspan="6" style="padding:8px 6px; font-weight:bold; text-align:right;">Sous-total ${label}</td><td style="padding:8px 6px; text-align:right; font-weight:bold;">${fmt(sousTotal)} F</td></tr>
-      </tbody></table>`;
-    });
-  } else {
-    const groups={};
-    (rec.lignes||[]).forEach(l=>{ const k=l.fournisseurNom||'Sans fournisseur assigné'; (groups[k]=groups[k]||[]).push(l); });
-    Object.keys(groups).forEach(label=>{
-      const sousTotal=groups[label].reduce((s,l)=>s+(l.montant||0),0);
-      corps+=`<div class="p-sec-title">${label}</div>`;
-      corps+=`<table style="width:100%; border-collapse:collapse; font-size:13px;"><thead><tr>
-        <th style="text-align:left; padding:6px;">Article</th>
-        <th style="text-align:right; padding:6px;">Besoin</th>
-        <th style="text-align:right; padding:6px;">Stock</th>
-        <th style="text-align:right; padding:6px;">À commander</th>
-        <th style="text-align:right; padding:6px;">Prix achat</th>
-        <th style="text-align:right; padding:6px;">Montant</th>
-      </tr></thead><tbody>
-        ${groups[label].map(l=>`<tr>
-          <td style="padding:6px;">${l.nom}</td>
-          <td style="padding:6px; text-align:right;">${fmt(l.besoin)}</td>
-          <td style="padding:6px; text-align:right;">${fmt(l.stock)}</td>
-          <td style="padding:6px; text-align:right; font-weight:bold;">${fmt(l.aCommander)}</td>
-          <td style="padding:6px; text-align:right;">${fmt(l.prixAchat)} F</td>
-          <td style="padding:6px; text-align:right;">${fmt(l.montant)} F</td>
-        </tr>`).join('')}
-        <tr><td colspan="5" style="padding:8px 6px; font-weight:bold; text-align:right;">Sous-total ${label}</td><td style="padding:8px 6px; text-align:right; font-weight:bold;">${fmt(sousTotal)} F</td></tr>
-      </tbody></table>`;
-    });
-  }
-  const titre = isLivres ? 'BON DE COMMANDE LIVRES (prévisionnel)' : 'BON DE COMMANDE FOURNITURES (prévisionnel)';
+  const groups={};
+  (rec.lignes||[]).forEach(l=>{ const k=l.fournisseurNom||'Sans fournisseur assigné'; (groups[k]=groups[k]||[]).push(l); });
+  Object.keys(groups).forEach(label=>{
+    const sousTotal=groups[label].reduce((s,l)=>s+(l.montant||0),0);
+    corps+=`<div class="p-sec-title">${label}</div>`;
+    corps+=`<table style="width:100%; border-collapse:collapse; font-size:13px;"><thead><tr>
+      <th style="text-align:left; padding:6px;">Article</th>
+      <th style="text-align:right; padding:6px;">Besoin</th>
+      <th style="text-align:right; padding:6px;">Stock</th>
+      <th style="text-align:right; padding:6px;">À commander</th>
+      <th style="text-align:right; padding:6px;">Prix achat</th>
+      <th style="text-align:right; padding:6px;">Montant</th>
+    </tr></thead><tbody>
+      ${groups[label].map(l=>`<tr>
+        <td style="padding:6px;">${l.nom}</td>
+        <td style="padding:6px; text-align:right;">${fmt(l.besoin)}</td>
+        <td style="padding:6px; text-align:right;">${fmt(l.stock)}</td>
+        <td style="padding:6px; text-align:right; font-weight:bold;">${fmt(l.aCommander)}</td>
+        <td style="padding:6px; text-align:right;">${fmt(l.prixAchat)} F</td>
+        <td style="padding:6px; text-align:right;">${fmt(l.montant)} F</td>
+      </tr>`).join('')}
+      <tr><td colspan="5" style="padding:8px 6px; font-weight:bold; text-align:right;">Sous-total ${label}</td><td style="padding:8px 6px; text-align:right; font-weight:bold;">${fmt(sousTotal)} F</td></tr>
+    </tbody></table>`;
+  });
   area.innerHTML=`
     <div class="p-head">
       <img src="${LOGO_SRC}" alt="" class="p-logo">
       <h1>SHIPHRA Trade Center</h1>
-      <div class="p-sub">${titre}</div>
+      <div class="p-sub">BON DE COMMANDE FOURNITURES (prévisionnel)</div>
       <div class="p-sub">Date : ${rec.date} ${rec.heure} &nbsp;·&nbsp; Établi par : ${rec.auteur||'—'}</div>
-      ${kitsRecap ? `<div class="p-sub">${isLivres?'Élèves prévus':'Kits prévus'} — ${kitsRecap}</div>` : ''}
+      ${kitsRecap ? `<div class="p-sub">Kits prévus — ${kitsRecap}</div>` : ''}
     </div>
     ${corps}
     <div style="margin-top:16px; text-align:right; font-size:15px; line-height:1.9;">
@@ -4081,6 +4055,65 @@ function imprimerPrevision(rec){
     </div>
   `;
   window.print();
+}
+
+// Impression des LIVRES : un bon complet PAR MAISON D'ÉDITION (page séparée, prêt à envoyer)
+function imprimerPrevisionLivres(rec, area){
+  const groups={};
+  (rec.lignes||[]).forEach(l=>{ const key=l.fournisseurNom || 'Sans maison d\'édition'; (groups[key]=groups[key]||[]).push(l); });
+  const keys=Object.keys(groups);
+  const bons = keys.map((label, idx)=>{
+    const lignes=groups[label];
+    const total=lignes.reduce((s,l)=>s+(l.montant||0),0);
+    const nbEx=lignes.reduce((s,l)=>s+(l.aCommander||0),0);
+    const pageBreak = idx>0 ? 'page-break-before:always;' : '';
+    const rowsH = lignes.map(l=>`<tr>
+      <td style="padding:6px;">${l.classe||''}</td>
+      <td style="padding:6px;">${l.nom}</td>
+      <td style="padding:6px;">${l.matiere||''}</td>
+      <td style="padding:6px; text-align:right; font-weight:bold;">${fmt(l.aCommander)}</td>
+      <td style="padding:6px; text-align:right;">${fmt(l.prixAchat)} F</td>
+      <td style="padding:6px; text-align:right;">${fmt(l.montant)} F</td>
+    </tr>`).join('');
+    return `<div style="${pageBreak}">
+      <div class="p-head">
+        <img src="${LOGO_SRC}" alt="" class="p-logo">
+        <h1>SHIPHRA Trade Center</h1>
+        <div class="p-sub">BON DE COMMANDE LIVRES</div>
+        <div class="p-sub">Maison d'édition : <b>${label}</b></div>
+        <div class="p-sub">Date : ${rec.date} ${rec.heure} &nbsp;·&nbsp; Établi par : ${rec.auteur||'—'}</div>
+      </div>
+      <table style="width:100%; border-collapse:collapse; font-size:13px;"><thead><tr>
+        <th style="text-align:left; padding:6px;">Classe</th>
+        <th style="text-align:left; padding:6px;">Livre</th>
+        <th style="text-align:left; padding:6px;">Matière</th>
+        <th style="text-align:right; padding:6px;">Quantité</th>
+        <th style="text-align:right; padding:6px;">Prix achat</th>
+        <th style="text-align:right; padding:6px;">Montant</th>
+      </tr></thead><tbody>
+        ${rowsH}
+        <tr><td colspan="3" style="padding:8px 6px; font-weight:bold; text-align:right;">TOTAL — ${label} (${fmt(nbEx)} exemplaires)</td><td style="padding:8px 6px; text-align:right; font-weight:bold;">${fmt(nbEx)}</td><td></td><td style="padding:8px 6px; text-align:right; font-weight:bold;">${fmt(total)} F</td></tr>
+      </tbody></table>
+      <div style="margin-top:40px; display:flex; justify-content:space-between; font-size:13px;">
+        <div style="width:45%;"><div style="border-top:1px solid #222; padding-top:6px;">Cachet / Visa maison d'édition</div></div>
+        <div style="width:45%; text-align:right;"><div style="border-top:1px solid #222; padding-top:6px;">Signature du Gérant (Shiphra)</div></div>
+      </div>
+    </div>`;
+  }).join('');
+  area.innerHTML = bons || '<div class="p-head"><h1>SHIPHRA Trade Center</h1><div class="p-sub">Aucun livre à commander.</div></div>';
+}
+
+// Récap des totaux par maison d'édition (affichage écran)
+function recapFournisseurLivres(rows){
+  const map={}; let sansF=0;
+  (rows||[]).forEach(r=>{ if(!(r.aCommander>0)) return; const f=DATA.fournisseurs.find(x=>x.id===r.livre.fournisseurId); const mt=r.aCommander*livreAchat(r.livre); if(f){ map[f.nom]=(map[f.nom]||0)+mt; } else { sansF+=mt; } });
+  const keys=Object.keys(map);
+  if(!keys.length && !sansF) return '';
+  let h='<div style="margin-top:12px; padding-top:10px; border-top:1px dashed var(--line);"><div style="font-weight:bold; font-size:12px; color:var(--navy-dark); margin-bottom:6px;">Récap par maison d\'édition — chaque éditeur = 1 bon à l\'impression</div>';
+  keys.forEach(k=>{ h+=`<div style="display:flex; justify-content:space-between; font-size:12px; margin:2px 0;"><span>${k}</span><b>${fmt(map[k])} F</b></div>`; });
+  if(sansF>0){ h+=`<div style="font-size:12px; margin:6px 0 0; color:var(--warn);">⚠ Des livres n'ont pas de maison d'édition. Assigne-les dans « Mon stock &gt; Livres » (colonne Fournisseur) — total non réparti : <b>${fmt(sansF)} F</b></div>`; }
+  h+='</div>';
+  return h;
 }
 
 // ---------- STOCK LIVRES (catalogue par classe, vendus au détail) ----------
