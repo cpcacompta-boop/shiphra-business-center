@@ -1,5 +1,5 @@
 // ============================================================
-//  Shiphra Business Center — Serveur (Express + PostgreSQL)
+//  Shiphra Trade Center — Serveur (Express + PostgreSQL)
 //  v6 — Multi-localités
 //  Rôles : Gérant (admin, main sur tout) · Superviseur (consulte)
 //          · Vente (vend dans SA localité).
@@ -907,9 +907,9 @@ async function envoyerSauvegarde(motif) {
   await transport.sendMail({
     from: process.env.SMTP_USER,
     to: BACKUP_EMAIL,
-    subject: `Sauvegarde Shiphra Business Center — ${jour}`,
+    subject: `Sauvegarde Shiphra Trade Center — ${jour}`,
     text:
-`Sauvegarde automatique de Shiphra Business Center.
+`Sauvegarde automatique de Shiphra Trade Center.
 
 Date : ${jour}
 Ventes enregistrées : ${nbVentes}
