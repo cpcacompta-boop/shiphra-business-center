@@ -617,6 +617,7 @@ let editingFournisseur = null;
 let livreNiveauFilter = null;
 let stockLivresSearch = '';
 let previsionTab = 'fournitures';
+let previsionLivreBase = 'stock'; // 'stock' | 'retour' (base de calcul des livres)
 
 function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
 
@@ -3805,10 +3806,18 @@ function renderPrevisionFournitures(main){
 function renderPrevisionLivres(main){
   const livres = DATA.livres || [];
   const nbHist = (DATA.previsions||[]).filter(p=>p.type==='livres').length;
+  const baseRetour = (previsionLivreBase==='retour');
   main.innerHTML = `
     <div class="card">
+      <h3>Base de calcul</h3>
+      <div class="tabs" style="margin-bottom:6px;">
+        <button class="tab-btn ${!baseRetour?'active':''}" id="pl-base-stock">Stock actuel</button>
+        <button class="tab-btn ${baseRetour?'active':''}" id="pl-base-retour">Bon de retour (je saisis)</button>
+      </div>
+      <p class="page-sub" style="margin:0;">${baseRetour ? 'À commander = Besoin − quantités du bon de retour de l\'an dernier. Tu saisis, livre par livre, ce qui est revenu.' : 'À commander = Besoin − stock actuel.'}</p>
+    </div>
+    <div class="card">
       <h3>Nombre d'élèves (ou de kits) par classe</h3>
-      <p class="page-sub" style="margin-top:-2px;">Pour chaque classe, mets combien d'élèves tu prépares : l'appli calcule combien d'exemplaires de chaque livre commander selon ton stock.</p>
       <div class="table-scroll"><table><thead><tr><th>Classe</th><th class="num">Nombre d'élèves</th></tr></thead><tbody>
         ${DATA.niveaux.map(n=>`<tr><td>${n.nom}</td><td class="num"><input type="number" min="0" value="0" style="width:90px; text-align:right;" data-prevl="${n.id}"></td></tr>`).join('')}
       </tbody></table></div>
@@ -3820,31 +3829,72 @@ function renderPrevisionLivres(main){
       <div id="prevl-hist"></div>
     </div>
   `;
+  document.getElementById('pl-base-stock').onclick = ()=>{ previsionLivreBase='stock'; renderPrevision(document.getElementById('main')); };
+  document.getElementById('pl-base-retour').onclick = ()=>{ previsionLivreBase='retour'; renderPrevision(document.getElementById('main')); };
+
   let lastCalc = null;
   document.getElementById('prevl-calc').onclick = ()=>{
     const elevesByNiveau = {}; let totalEleves=0;
     main.querySelectorAll('input[data-prevl]').forEach(inp=>{ const q=parseInt(inp.value)||0; elevesByNiveau[inp.dataset.prevl]=q; totalEleves+=q; });
     const result=document.getElementById('prevl-result');
     if(totalEleves===0){ lastCalc=null; result.innerHTML='<div class="card"><div class="empty">Entrez au moins un nombre d\'élèves, puis cliquez sur « Calculer la commande ».</div></div>'; return; }
-    const rows = livres.map(l=>{ const besoin=(elevesByNiveau[l.niveauId]||0); return { livre:l, besoin, aCommander:Math.max(besoin-l.stock,0) }; }).filter(x=>x.besoin>0);
+    const baseRows = livres.map(l=>({ livre:l, besoin:(elevesByNiveau[l.niveauId]||0) })).filter(x=>x.besoin>0);
     const groups={};
-    rows.forEach(r=>{ const nid=r.livre.niveauId||'_none'; (groups[nid]=groups[nid]||[]).push(r); });
-    const totalCmd = rows.reduce((s,r)=>s + r.aCommander*livreAchat(r.livre), 0);
-    lastCalc = { elevesByNiveau, rows, groups, totalCmd };
-    let html='<div class="card"><h3>Détail par classe — combien de livres commander selon le stock</h3>';
+    baseRows.forEach(r=>{ const nid=r.livre.niveauId||'_none'; (groups[nid]=groups[nid]||[]).push(r); });
+
+    // lit la base (stock, ou retour saisi) pour un livre
+    const readBase = (livre)=>{
+      if(!baseRetour) return livre.stock||0;
+      const inp = result.querySelector('input[data-retour="'+livre.id+'"]');
+      return inp ? Math.max(parseInt(inp.value)||0,0) : 0;
+    };
+    const rebuildCalc = ()=>{
+      const rows = baseRows.map(r=>{ const base=readBase(r.livre); return { livre:r.livre, besoin:r.besoin, base, aCommander:Math.max(r.besoin-base,0) }; });
+      const totalCmd = rows.reduce((s,r)=>s + r.aCommander*livreAchat(r.livre), 0);
+      lastCalc = { elevesByNiveau, rows, totalCmd, baseLabel: baseRetour ? 'Bon de retour (an dernier)' : 'Stock actuel' };
+      return { rows, totalCmd };
+    };
+
+    const baseHeader = baseRetour ? 'Retour an dernier' : 'Stock';
+    let html='<div class="card"><h3>Détail par classe — combien de livres commander</h3>';
     DATA.niveaux.forEach(n=>{
       const g=groups[n.id]; if(!g) return;
       html+=`<div style="font-weight:bold; color:var(--navy-dark); font-size:12px; margin:14px 0 6px;">${n.nom}</div>`;
-      html+='<div class="table-scroll"><table><thead><tr><th>Livre</th><th>Matière</th><th class="num">Besoin</th><th class="num">Stock</th><th class="num">À commander</th><th class="num">Prix achat</th><th class="num">Montant</th></tr></thead><tbody>';
-      g.forEach(r=>{ const pa=livreAchat(r.livre); html+=`<tr><td>${r.livre.nom}</td><td>${r.livre.matiere||''}</td><td class="num">${fmt(r.besoin)}</td><td class="num">${fmt(r.livre.stock)}</td><td class="num"><b>${fmt(r.aCommander)}</b></td><td class="num">${fmt(pa)} F</td><td class="num">${fmt(r.aCommander*pa)} F</td></tr>`; });
+      html+=`<div class="table-scroll"><table><thead><tr><th>Livre</th><th>Matière</th><th class="num">Besoin</th><th class="num">${baseHeader}</th><th class="num">À commander</th><th class="num">Prix achat</th><th class="num">Montant</th></tr></thead><tbody>`;
+      g.forEach(r=>{
+        const l=r.livre; const pa=livreAchat(l);
+        const base0 = baseRetour ? 0 : (l.stock||0);
+        const aCmd0 = Math.max(r.besoin-base0,0);
+        const baseCell = baseRetour
+          ? `<input type="number" min="0" value="0" style="width:80px; text-align:right;" data-retour="${l.id}">`
+          : `${fmt(l.stock)}`;
+        html+=`<tr data-livre="${l.id}"><td>${l.nom}</td><td>${l.matiere||''}</td><td class="num">${fmt(r.besoin)}</td><td class="num">${baseCell}</td><td class="num" data-cell="acmd"><b>${fmt(aCmd0)}</b></td><td class="num">${fmt(pa)} F</td><td class="num" data-cell="mt">${fmt(aCmd0*pa)} F</td></tr>`;
+      });
       html+='</tbody></table></div>';
     });
-    html+=`<div style="text-align:right; margin-top:14px; font-weight:bold; font-size:15px; color:var(--navy-dark);">Total à commander (à payer au fournisseur) : ${fmt(totalCmd)} F</div>`;
+    const totalInit = baseRows.reduce((s,r)=>{ const base0=baseRetour?0:(r.livre.stock||0); return s + Math.max(r.besoin-base0,0)*livreAchat(r.livre); },0);
+    html+=`<div style="text-align:right; margin-top:14px; font-weight:bold; font-size:15px; color:var(--navy-dark);">Total à commander (à payer au fournisseur) : <span id="prevl-total">${fmt(totalInit)}</span> F</div>`;
+    if(baseRetour){ html+=`<p class="page-sub" style="margin-top:6px;">Saisis les quantités revenues l'an dernier ci-dessus : le « À commander » et le total se recalculent tout seuls.</p>`; }
     html+=`<div style="margin-top:16px; display:flex; gap:10px; flex-wrap:wrap;"><button class="btn" id="prevl-save">&#128190; Enregistrer la commande</button><button class="btn btn-ghost" id="prevl-print">&#128424;&#65039; Imprimer</button></div>`;
     html+='</div>';
     result.innerHTML=html;
-    const sb=document.getElementById('prevl-save'); if(sb){ sb.onclick=()=>savePrevision(buildPrevisionRecordLivres(lastCalc), sb); }
-    const pb=document.getElementById('prevl-print'); if(pb){ pb.onclick=()=>{ if(lastCalc) imprimerPrevision(buildPrevisionRecordLivres(lastCalc)); }; }
+
+    const recompute = ()=>{
+      const { rows, totalCmd } = rebuildCalc();
+      const byId={}; rows.forEach(r=>byId[r.livre.id]=r);
+      result.querySelectorAll('tr[data-livre]').forEach(tr=>{
+        const r=byId[tr.dataset.livre]; if(!r) return;
+        const pa=livreAchat(r.livre);
+        tr.querySelector('[data-cell="acmd"]').innerHTML='<b>'+fmt(r.aCommander)+'</b>';
+        tr.querySelector('[data-cell="mt"]').textContent=fmt(r.aCommander*pa)+' F';
+      });
+      const tot=result.querySelector('#prevl-total'); if(tot) tot.textContent=fmt(totalCmd);
+    };
+    if(baseRetour){ result.querySelectorAll('input[data-retour]').forEach(inp=>{ inp.addEventListener('input', recompute); }); }
+    rebuildCalc(); // initialise lastCalc
+
+    const sb=document.getElementById('prevl-save'); if(sb){ sb.onclick=()=>{ rebuildCalc(); savePrevision(buildPrevisionRecordLivres(lastCalc), sb); }; }
+    const pb=document.getElementById('prevl-print'); if(pb){ pb.onclick=()=>{ rebuildCalc(); if(lastCalc) imprimerPrevision(buildPrevisionRecordLivres(lastCalc)); }; }
   };
   renderPrevisionHist('livres','prevl-hist');
 }
@@ -3861,8 +3911,8 @@ function buildPrevisionRecordFournitures(calc){
 function buildPrevisionRecordLivres(calc){
   const now=new Date();
   const kits = DATA.niveaux.filter(n=>(calc.elevesByNiveau[n.id]||0)>0).map(n=>({niveauId:n.id, nom:n.nom, nbKits:calc.elevesByNiveau[n.id]}));
-  const lignes = calc.rows.map(r=>{ const niv=DATA.niveaux.find(n=>n.id===r.livre.niveauId); const pa=livreAchat(r.livre); return { livreId:r.livre.id, nom:r.livre.nom, matiere:r.livre.matiere||'', niveauId:r.livre.niveauId||null, classe:niv?niv.nom:'', besoin:r.besoin, stock:r.livre.stock, aCommander:r.aCommander, prixAchat:pa, montant:r.aCommander*pa }; });
-  return { id:uid(), type:'livres', dateISO:now.toISOString(), date:now.toLocaleDateString('fr-FR'), heure:now.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}), auteur:(CURRENT_USER&&(CURRENT_USER.nomComplet||CURRENT_USER.username))||'—', kits, lignes, totalCmd:calc.totalCmd };
+  const lignes = calc.rows.map(r=>{ const niv=DATA.niveaux.find(n=>n.id===r.livre.niveauId); const pa=livreAchat(r.livre); return { livreId:r.livre.id, nom:r.livre.nom, matiere:r.livre.matiere||'', niveauId:r.livre.niveauId||null, classe:niv?niv.nom:'', besoin:r.besoin, base:r.base, stock:r.base, aCommander:r.aCommander, prixAchat:pa, montant:r.aCommander*pa }; });
+  return { id:uid(), type:'livres', baseLabel:calc.baseLabel||'Stock actuel', dateISO:now.toISOString(), date:now.toLocaleDateString('fr-FR'), heure:now.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}), auteur:(CURRENT_USER&&(CURRENT_USER.nomComplet||CURRENT_USER.username))||'—', kits, lignes, totalCmd:calc.totalCmd };
 }
 
 // Enregistre une commande (fournitures OU livres) DANS LA BASE
@@ -3921,7 +3971,7 @@ function imprimerPrevision(rec){
         <th style="text-align:left; padding:6px;">Livre</th>
         <th style="text-align:left; padding:6px;">Matière</th>
         <th style="text-align:right; padding:6px;">Besoin</th>
-        <th style="text-align:right; padding:6px;">Stock</th>
+        <th style="text-align:right; padding:6px;">${rec.baseLabel||'Stock'}</th>
         <th style="text-align:right; padding:6px;">À commander</th>
         <th style="text-align:right; padding:6px;">Prix achat</th>
         <th style="text-align:right; padding:6px;">Montant</th>
@@ -3930,7 +3980,7 @@ function imprimerPrevision(rec){
           <td style="padding:6px;">${l.nom}</td>
           <td style="padding:6px;">${l.matiere||''}</td>
           <td style="padding:6px; text-align:right;">${fmt(l.besoin)}</td>
-          <td style="padding:6px; text-align:right;">${fmt(l.stock)}</td>
+          <td style="padding:6px; text-align:right;">${fmt(l.base!=null?l.base:(l.stock||0))}</td>
           <td style="padding:6px; text-align:right; font-weight:bold;">${fmt(l.aCommander)}</td>
           <td style="padding:6px; text-align:right;">${fmt(l.prixAchat)} F</td>
           <td style="padding:6px; text-align:right;">${fmt(l.montant)} F</td>
