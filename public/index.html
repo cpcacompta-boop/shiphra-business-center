@@ -3634,7 +3634,15 @@ function renderCommandes(main){
     <p class="page-sub">Les articles tombés à leur seuil d'alerte, à recommander pour te réapprovisionner, classés par fournisseur.</p>
     <div class="card">
       <h3>Suggestion de commande</h3>
-      ${suggestions.length>0 ? '<input type="search" id="sug-search" placeholder="&#128269; Rechercher un article..." autocomplete="off" style="width:100%; padding:10px 14px; margin-bottom:12px; font-size:14px; border:1px solid var(--line); border-radius:9px; box-sizing:border-box;">' : ''}
+      ${suggestions.length>0 ? `
+      <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px;">
+        <input type="search" id="sug-search" placeholder="&#128269; Rechercher un article..." autocomplete="off" style="flex:1; min-width:180px; padding:10px 14px; font-size:14px; border:1px solid var(--line); border-radius:9px; box-sizing:border-box;">
+        <select id="sug-fourn" style="min-width:190px; padding:10px 12px; font-size:14px; border:1px solid var(--line); border-radius:9px;">
+          <option value="">Toutes les maisons d'édition</option>
+          ${DATA.fournisseurs.map(f=>`<option value="${f.id}">${f.nom}</option>`).join('')}
+          <option value="_none">Sans maison d'édition</option>
+        </select>
+      </div>` : ''}
       ${suggestions.length===0 ? '<div class="empty">Aucun article sous son seuil d\'alerte pour le moment — tout est bien approvisionné. 👍</div>' : ''}
       <div id="suggest-body"></div>
       ${suggestions.length>0 ? '<button class="btn" id="create-cmd" style="margin-top:14px;">Créer les commandes suggérées</button>' : ''}
@@ -3660,6 +3668,7 @@ function renderCommandes(main){
       const block = document.createElement('div');
       block.style.marginBottom = '18px';
       block.className = 'cmd-sug-block';
+      block.dataset.fid = fid;
       block.innerHTML = `
         <div style="font-family:'Segoe UI', system-ui, -apple-system, Arial, Helvetica, sans-serif; font-weight:bold; color:var(--navy-dark); font-size:12px; margin-bottom:6px;">${label} <span class="muted" style="font-weight:normal;">— ${fmt(total)} F</span></div>
         <div class="table-scroll"><table><thead><tr><th>Article</th><th class="num">Seuil</th><th class="num">Stock</th><th class="num">A commander</th><th class="num">Montant</th></tr></thead><tbody>
@@ -3669,21 +3678,24 @@ function renderCommandes(main){
       sb.appendChild(block);
     });
     const sugSearch = document.getElementById('sug-search');
-    if(sugSearch){
-      const normS = str => (str==null?'':String(str)).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-      sugSearch.addEventListener('input', ()=>{
-        const q = normS(sugSearch.value.trim());
-        document.querySelectorAll('#suggest-body .cmd-sug-block').forEach(block=>{
-          let any=false;
-          block.querySelectorAll('tr[data-artname]').forEach(tr=>{
-            const match = q==='' ? true : normS(tr.dataset.artname).includes(q);
-            tr.style.display = match ? '' : 'none';
-            if(match) any=true;
-          });
-          block.style.display = any ? '' : 'none';
+    const sugFourn = document.getElementById('sug-fourn');
+    const normS = str => (str==null?'':String(str)).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    const applySugFilter = ()=>{
+      const q = normS(sugSearch?sugSearch.value.trim():'');
+      const fId = sugFourn?sugFourn.value:'';
+      document.querySelectorAll('#suggest-body .cmd-sug-block').forEach(block=>{
+        if(fId!=='' && block.dataset.fid!==fId){ block.style.display='none'; return; }
+        let any=false;
+        block.querySelectorAll('tr[data-artname]').forEach(tr=>{
+          const match = q==='' ? true : normS(tr.dataset.artname).includes(q);
+          tr.style.display = match ? '' : 'none';
+          if(match) any=true;
         });
+        block.style.display = any ? '' : 'none';
       });
-    }
+    };
+    if(sugSearch) sugSearch.addEventListener('input', applySugFilter);
+    if(sugFourn) sugFourn.addEventListener('change', applySugFilter);
     document.getElementById('create-cmd').onclick = async ()=>{
       const date = new Date().toISOString().slice(0,10);
       Object.keys(groups).forEach(fid=>{
@@ -3920,9 +3932,16 @@ function drawPrevisionLivresRetour(body, livres){
 
   body.innerHTML = `
     <div class="card">
-      <h3>Rechercher un livre</h3>
-      <input type="search" id="pl-ret-search" placeholder="&#128269; Tape le nom d'un livre (ex : Bienvenue, maths...)" autocomplete="off" style="width:100%; padding:11px 14px; font-size:14px; border:1px solid var(--line); border-radius:9px; box-sizing:border-box;">
-      <p class="page-sub" style="margin:8px 0 0;">La recherche affiche le livre même si sa classe n'est pas cochée.</p>
+      <h3>Rechercher un livre / une maison d'édition</h3>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <input type="search" id="pl-ret-search" placeholder="&#128269; Tape le nom d'un livre (ex : Bienvenue, maths...)" autocomplete="off" style="flex:1; min-width:180px; padding:11px 14px; font-size:14px; border:1px solid var(--line); border-radius:9px; box-sizing:border-box;">
+        <select id="pl-ret-fourn" style="min-width:190px; padding:11px 12px; font-size:14px; border:1px solid var(--line); border-radius:9px;">
+          <option value="">Toutes les maisons d'édition</option>
+          ${DATA.fournisseurs.map(f=>`<option value="${f.id}">${f.nom}</option>`).join('')}
+          <option value="_none">Sans maison d'édition</option>
+        </select>
+      </div>
+      <p class="page-sub" style="margin:8px 0 0;">Cherche par nom, ou choisis une maison d'édition pour ne voir que ses livres. Le livre s'affiche même si sa classe n'est pas cochée.</p>
     </div>
     <div class="card">
       <h3>Choisis les classes à commander</h3>
@@ -3932,7 +3951,7 @@ function drawPrevisionLivresRetour(body, livres){
       <h3>Commandé l'an dernier, retours &amp; ajout</h3>
       <p class="page-sub" style="margin-top:-2px;">Pour chaque livre : <b>Commandé an dernier</b> et <b>Retour</b> → le <b>Vendu</b> se calcule tout seul (Commandé − Retour). Tu peux ensuite mettre un <b>Ajout</b> pour commander plus. La commande finale = <b>Vendu + Ajout</b>.</p>
       ${tablesHtml}
-      <div id="pl-ret-empty" class="empty">Coche une ou plusieurs classes ci-dessus, ou utilise la recherche, pour saisir les livres.</div>
+      <div id="pl-ret-empty" class="empty">Coche une ou plusieurs classes, ou utilise la recherche / la maison d'édition, pour saisir les livres.</div>
       <div style="text-align:right; margin-top:14px; font-weight:bold; font-size:15px; color:var(--navy-dark);">Total à commander (à payer au fournisseur) : <span id="prevl-total">0</span> F</div>
       <div id="prevl-fourn-recap"></div>
       <div style="margin-top:16px; display:flex; gap:10px; flex-wrap:wrap;"><button class="btn" id="prevl-save">&#128190; Enregistrer la commande</button><button class="btn btn-ghost" id="prevl-print">&#128424;&#65039; Imprimer</button></div>
@@ -3941,18 +3960,23 @@ function drawPrevisionLivresRetour(body, livres){
 
   const emptyMsg=document.getElementById('pl-ret-empty');
   const searchInp=document.getElementById('pl-ret-search');
+  const fournSel=document.getElementById('pl-ret-fourn');
 
   const applyFilter=()=>{
     const q=norm(searchInp?searchInp.value.trim():'');
+    const fId=fournSel?fournSel.value:'';
+    const filterActive = (q!=='' || fId!=='');
     let anyVisible=false;
     body.querySelectorAll('.pl-cls').forEach(sec=>{
       const cid=sec.dataset.clsSec;
       const cb=body.querySelector('input[data-cls="'+cid+'"]');
-      if(q){
+      if(filterActive){
         let anyRow=false;
         sec.querySelectorAll('tr[data-livre]').forEach(tr=>{
           const l=livres.find(x=>x.id===tr.dataset.livre);
-          const match=norm((l&&l.nom||'')+' '+(l&&l.matiere||'')).includes(q);
+          let match=true;
+          if(fId!==''){ const lf=String((l&&l.fournisseurId)||'_none'); if(lf!==fId) match=false; }
+          if(match && q!=='' && !norm((l&&l.nom||'')+' '+(l&&l.matiere||'')).includes(q)) match=false;
           tr.style.display = match ? '' : 'none';
           if(match) anyRow=true;
         });
@@ -3992,6 +4016,7 @@ function drawPrevisionLivresRetour(body, livres){
   body.querySelectorAll('input[data-cmd], input[data-ret], input[data-ajout]').forEach(inp=>{ inp.addEventListener('input', rebuild); });
   body.querySelectorAll('input[data-cls]').forEach(cb=>{ cb.addEventListener('change', applyFilter); });
   if(searchInp){ searchInp.addEventListener('input', applyFilter); }
+  if(fournSel){ fournSel.addEventListener('change', applyFilter); }
 
   applyFilter();
   rebuild();
