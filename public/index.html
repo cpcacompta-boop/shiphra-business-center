@@ -703,6 +703,16 @@ function migrateData(){
   let changed = false;
   if(!DATA.depenses){ DATA.depenses = []; changed = true; }
   if(!DATA.previsions){ DATA.previsions = []; changed = true; }
+  if(!DATA._migAchatDirect){
+    (DATA.livres||[]).forEach(l=>{
+      if(!(+l.prixAchat>0)){
+        const vente=+l.prixVente||0, rem=+l.remise||0;
+        const old=(l.remiseType==='fcfa')?(vente-rem):(vente - vente*rem/100);
+        l.prixAchat = Math.max(Math.round(old),0);
+      }
+    });
+    DATA._migAchatDirect = true; changed = true;
+  }
   // Livres : catalogue vendu au détail
   if(!DATA.ventesLivres){ DATA.ventesLivres = []; changed = true; }
   if(!DATA.livres){ DATA.livres = seedLivres(DATA.niveaux); changed = true; }
@@ -4192,10 +4202,7 @@ function recapFournisseurLivres(rows){
 // Le prix d'achat se calcule à partir du PRIX DE VENTE et de la remise (% ou FCFA).
 // Ex : vente 3000, remise 20% -> achat 2400.  |  vente 3000, remise 1000 F -> achat 2000.
 function livreAchat(l){
-  const vente = +l.prixVente || 0;
-  const rem = +l.remise || 0;
-  const achat = (l.remiseType==='fcfa') ? (vente - rem) : (vente - vente*rem/100);
-  return Math.max(Math.round(achat), 0);
+  return Math.max(Math.round(+l.prixAchat || 0), 0);
 }
 function calcAchat(vente, rem, type){
   vente = +vente||0; rem = +rem||0;
@@ -4208,7 +4215,7 @@ function renderStockLivres(main){
     livreNiveauFilter = DATA.niveaux.length ? DATA.niveaux[0].id : null;
   }
   main.innerHTML = `
-    <p class="page-sub" style="margin-top:0;">Les livres sont vendus à l'unité. Mets le prix de vente et la remise du fournisseur (en % ou en F) : le prix d'achat et le bénéfice se calculent tout seuls.</p>
+    <p class="page-sub" style="margin-top:0;">Les livres sont vendus à l'unité. Mets directement le prix d'achat (facture fournisseur) et le prix de vente : le bénéfice se calcule tout seul.</p>
     <div class="card">
       <h3 style="justify-content:flex-start; gap:10px;">
         <span>Livres</span>
@@ -4269,8 +4276,8 @@ function drawStockLivres(){
     <div class="sheet-scroll"><table>
       <thead><tr>
         <th>Livre</th><th>Matière</th>
-        <th class="num">Prix vente</th><th>Remise</th>
-        <th class="num">Prix d'achat</th><th class="num">Bénéfice</th>
+        <th class="num">Prix d'achat</th><th class="num">Prix vente</th>
+        <th class="num">Bénéfice</th>
         <th class="num">Stock</th><th class="num">Seuil</th><th>Fournisseur</th><th>Statut</th>
       </tr></thead>
       <tbody>
@@ -4281,17 +4288,8 @@ function drawStockLivres(){
         return `<tr class="${low?'row-alert':''}">
           <td><input type="text" value="${(l.nom||'').replace(/"/g,'&quot;')}" style="width:190px;" data-lnom="${l.id}"></td>
           <td><input type="text" value="${(l.matiere||'').replace(/"/g,'&quot;')}" style="width:110px;" data-lmat="${l.id}"></td>
+          <td class="num"><input type="number" min="0" value="${l.prixAchat||0}" style="width:82px; text-align:right;" data-lachat="${l.id}"></td>
           <td class="num"><input type="number" min="0" value="${l.prixVente||0}" style="width:82px; text-align:right;" data-lvente="${l.id}"></td>
-          <td>
-            <span class="remise-wrap">
-              <input type="number" min="0" value="${l.remise||0}" style="width:62px; text-align:right;" data-lrem="${l.id}">
-              <select data-ltype="${l.id}">
-                <option value="pct" ${l.remiseType!=='fcfa'?'selected':''}>%</option>
-                <option value="fcfa" ${l.remiseType==='fcfa'?'selected':''}>F</option>
-              </select>
-            </span>
-          </td>
-          <td class="num achat-cell" data-lachatcell="${l.id}">${fmt(achat)} F</td>
           <td class="num" data-lmargecell="${l.id}" style="color:${marge>=0?'var(--ok)':'var(--warn)'}; font-weight:600;">${fmt(marge)} F</td>
           <td class="num"><input type="number" value="${l.stock}" style="width:66px; text-align:right;" data-lstock="${l.id}"></td>
           <td class="num"><input type="number" value="${l.seuil}" style="width:56px; text-align:right;" data-lseuil="${l.id}"></td>
@@ -4306,31 +4304,33 @@ function drawStockLivres(){
       }).join('')}
       </tbody>
     </table></div>
-    <div class="muted" style="margin-top:10px; font-size:12px;">Prix d'achat = prix de vente − remise. Ex : vente 3000 avec 20% → achat 2400. Le fournisseur peut aussi faire une remise en F (montant fixe).</div>
-    <div style="margin-top:16px; text-align:right;">
+    <div class="muted" style="margin-top:10px; font-size:12px;">Le bénéfice = prix de vente − prix d'achat. Saisis directement le prix d'achat (venant de ta facture fournisseur) et le prix de vente.</div>
+    <div style="margin-top:16px; display:flex; gap:10px; justify-content:flex-end; flex-wrap:wrap;">
+      <button class="btn btn-ghost" id="lv-import">&#128229; Importer les prix</button>
       <button class="btn" id="lv-save-all">Enregistrer</button>
+    </div>
+    <div id="lv-import-panel" style="display:none; margin-top:16px; border:1px solid var(--line); border-radius:10px; padding:16px; background:#F8FAFD;">
+      <h3 style="margin-top:0;">Importer les prix depuis une facture</h3>
+      <p class="page-sub" style="margin-top:0;">Colle une ligne par livre : <b>Nom du livre ; prix d'achat ; prix de vente</b>. L'appli retrouve tes livres existants par le nom et met à jour leurs prix. Les livres absents de ton appli sont <b>ignorés</b> (affichés à part). Le prix de vente est optionnel.</p>
+      <textarea id="lv-import-text" rows="7" placeholder="Exemple :&#10;C. REUSSITE MATHS 6è ; 2000 ; 3000&#10;MANUEL MOVE FORWARD 3è ; 2400 ; 3000" style="width:100%; padding:10px; font-family:monospace; font-size:13px; border:1px solid var(--line); border-radius:9px; box-sizing:border-box;"></textarea>
+      <div style="margin-top:10px;"><button class="btn" id="lv-import-parse">Analyser</button></div>
+      <div id="lv-import-preview" style="margin-top:14px;"></div>
     </div>
   `;
 
   // Recalcul en direct du prix d'achat + bénéfice pendant la saisie
   function recalc(id){
-    const vente = body.querySelector(`[data-lvente="${id}"]`).value;
-    const rem = body.querySelector(`[data-lrem="${id}"]`).value;
-    const typ = body.querySelector(`[data-ltype="${id}"]`).value;
-    const achat = calcAchat(vente, rem, typ);
-    const marge = (+vente||0) - achat;
-    body.querySelector(`[data-lachatcell="${id}"]`).textContent = fmt(achat) + ' F';
+    const vente = +body.querySelector(`[data-lvente="${id}"]`).value || 0;
+    const achat = +body.querySelector(`[data-lachat="${id}"]`).value || 0;
+    const marge = vente - achat;
     const mcell = body.querySelector(`[data-lmargecell="${id}"]`);
-    mcell.textContent = fmt(marge) + ' F';
-    mcell.style.color = marge>=0 ? 'var(--ok)' : 'var(--warn)';
+    if(mcell){ mcell.textContent = fmt(marge) + ' F'; mcell.style.color = marge>=0 ? 'var(--ok)' : 'var(--warn)'; }
   }
   livres.forEach(l=>{
-    ['lvente','lrem'].forEach(k=>{
+    ['lvente','lachat'].forEach(k=>{
       const el = body.querySelector(`[data-${k}="${l.id}"]`);
       if(el) el.oninput = ()=>recalc(l.id);
     });
-    const ts = body.querySelector(`[data-ltype="${l.id}"]`);
-    if(ts) ts.onchange = ()=>recalc(l.id);
   });
 
   document.getElementById('lv-save-all').onclick = async ()=>{
@@ -4338,9 +4338,7 @@ function drawStockLivres(){
       l.nom = body.querySelector(`[data-lnom="${l.id}"]`).value.trim() || 'Sans nom';
       l.matiere = body.querySelector(`[data-lmat="${l.id}"]`).value.trim();
       l.prixVente = parseFloat(body.querySelector(`[data-lvente="${l.id}"]`).value)||0;
-      l.remise = parseFloat(body.querySelector(`[data-lrem="${l.id}"]`).value)||0;
-      l.remiseType = body.querySelector(`[data-ltype="${l.id}"]`).value;
-      l.prixAchat = livreAchat(l);
+      l.prixAchat = parseFloat(body.querySelector(`[data-lachat="${l.id}"]`).value)||0;
       l.stock = parseInt(body.querySelector(`[data-lstock="${l.id}"]`).value)||0;
       l.seuil = parseInt(body.querySelector(`[data-lseuil="${l.id}"]`).value)||0;
       l.fournisseurId = body.querySelector(`[data-lfourn="${l.id}"]`).value || null;
@@ -4349,6 +4347,63 @@ function drawStockLivres(){
     showToast('Livres mis à jour');
     drawStockLivres();
   };
+  // ---- Import des prix : met à jour UNIQUEMENT les livres déjà présents ----
+  const impBtn = document.getElementById('lv-import');
+  const impPanel = document.getElementById('lv-import-panel');
+  if(impBtn && impPanel){ impBtn.onclick = ()=>{ impPanel.style.display = (impPanel.style.display==='none'?'block':'none'); }; }
+  const impParse = document.getElementById('lv-import-parse');
+  if(impParse){
+    const normI = str => (str==null?'':String(str)).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();
+    const num = v => { const n = parseFloat(String(v==null?'':v).replace(/[^0-9.,]/g,'').replace(',','.')); return isNaN(n)?null:Math.round(n); };
+    impParse.onclick = ()=>{
+      const raw = document.getElementById('lv-import-text').value || '';
+      const lines = raw.split('\n').map(x=>x.trim()).filter(Boolean);
+      const matched=[], notFound=[];
+      lines.forEach(line=>{
+        if(line.startsWith('#')) return;
+        let parts = line.split(/[;\t|]/);
+        if(parts.length<2) parts = line.split(/\s{2,}/);
+        parts = parts.map(x=>x.trim());
+        if(parts.length<2){ notFound.push(line+'  (format non reconnu)'); return; }
+        const nom = parts[0];
+        const achat = num(parts[1]);
+        const vente = parts.length>=3 ? num(parts[2]) : null;
+        const nn = normI(nom);
+        if(!nn) return;
+        let l = DATA.livres.find(x=>normI(x.nom)===nn);
+        if(!l) l = DATA.livres.find(x=>{ const xn=normI(x.nom); return xn && (xn.includes(nn) || nn.includes(xn)); });
+        if(l && achat!=null){ matched.push({l, achat, vente}); }
+        else notFound.push(nom);
+      });
+      const prev = document.getElementById('lv-import-preview');
+      if(!matched.length && !notFound.length){ prev.innerHTML='<div class="empty">Rien à analyser. Colle tes lignes puis clique sur Analyser.</div>'; return; }
+      let html='';
+      if(matched.length){
+        html += `<div style="font-weight:bold; color:var(--navy-dark); margin-bottom:6px;">${matched.length} livre(s) trouvé(s) — aperçu :</div>`;
+        html += '<div class="table-scroll"><table><thead><tr><th>Livre</th><th class="num">Achat (actuel &rarr; nouveau)</th><th class="num">Vente (actuel &rarr; nouveau)</th></tr></thead><tbody>';
+        matched.forEach(m=>{
+          const va = m.vente!=null ? (fmt(m.l.prixVente||0)+' &rarr; <b>'+fmt(m.vente)+'</b>') : (fmt(m.l.prixVente||0)+' (inchangé)');
+          html += `<tr><td>${m.l.nom}</td><td class="num">${fmt(m.l.prixAchat||0)} &rarr; <b>${fmt(m.achat)}</b></td><td class="num">${va}</td></tr>`;
+        });
+        html += '</tbody></table></div>';
+        html += '<div style="margin-top:12px;"><button class="btn" id="lv-import-apply">Appliquer et enregistrer</button></div>';
+      }
+      if(notFound.length){
+        html += `<div style="margin-top:14px; color:var(--warn); font-size:13px;"><b>${notFound.length} ligne(s) ignorée(s)</b> (livre non trouvé dans ton appli) :<br>${notFound.map(x=>'• '+x).join('<br>')}</div>`;
+      }
+      prev.innerHTML = html;
+      const applyBtn = document.getElementById('lv-import-apply');
+      if(applyBtn){
+        applyBtn.onclick = async ()=>{
+          matched.forEach(m=>{ m.l.prixAchat = m.achat; if(m.vente!=null) m.l.prixVente = m.vente; });
+          applyBtn.disabled=true; applyBtn.textContent='Enregistrement…';
+          const ok = await saveData();
+          if(ok){ showToast(matched.length+' prix mis à jour ✅'); drawStockLivres(); }
+          else { applyBtn.disabled=false; applyBtn.textContent='Appliquer et enregistrer'; }
+        };
+      }
+    };
+  }
   if(isSuperviseurReadonly()) disableInputs(document.getElementById('lv-body'));
 }
 
