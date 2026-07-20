@@ -3634,6 +3634,7 @@ function renderCommandes(main){
     <p class="page-sub">Les articles tombés à leur seuil d'alerte, à recommander pour te réapprovisionner, classés par fournisseur.</p>
     <div class="card">
       <h3>Suggestion de commande</h3>
+      ${suggestions.length>0 ? '<input type="search" id="sug-search" placeholder="&#128269; Rechercher un article..." autocomplete="off" style="width:100%; padding:10px 14px; margin-bottom:12px; font-size:14px; border:1px solid var(--line); border-radius:9px; box-sizing:border-box;">' : ''}
       ${suggestions.length===0 ? '<div class="empty">Aucun article sous son seuil d\'alerte pour le moment — tout est bien approvisionné. 👍</div>' : ''}
       <div id="suggest-body"></div>
       ${suggestions.length>0 ? '<button class="btn" id="create-cmd" style="margin-top:14px;">Créer les commandes suggérées</button>' : ''}
@@ -3658,14 +3659,31 @@ function renderCommandes(main){
       const total = groups[fid].reduce((s,x)=>s + x.aCommander*x.article.prixAchat, 0);
       const block = document.createElement('div');
       block.style.marginBottom = '18px';
+      block.className = 'cmd-sug-block';
       block.innerHTML = `
         <div style="font-family:'Segoe UI', system-ui, -apple-system, Arial, Helvetica, sans-serif; font-weight:bold; color:var(--navy-dark); font-size:12px; margin-bottom:6px;">${label} <span class="muted" style="font-weight:normal;">— ${fmt(total)} F</span></div>
         <div class="table-scroll"><table><thead><tr><th>Article</th><th class="num">Seuil</th><th class="num">Stock</th><th class="num">A commander</th><th class="num">Montant</th></tr></thead><tbody>
-        ${groups[fid].map(s=>`<tr><td>${s.article.nom}</td><td class="num">${fmt(s.seuil)}</td><td class="num">${fmt(s.article.stock)}</td><td class="num"><b>${fmt(s.aCommander)}</b></td><td class="num">${fmt(s.aCommander*s.article.prixAchat)} F</td></tr>`).join('')}
+        ${groups[fid].map(s=>`<tr data-artname="${(s.article.nom||'').replace(/"/g,'&quot;')}"><td>${s.article.nom}</td><td class="num">${fmt(s.seuil)}</td><td class="num">${fmt(s.article.stock)}</td><td class="num"><b>${fmt(s.aCommander)}</b></td><td class="num">${fmt(s.aCommander*s.article.prixAchat)} F</td></tr>`).join('')}
         </tbody></table></div>
       `;
       sb.appendChild(block);
     });
+    const sugSearch = document.getElementById('sug-search');
+    if(sugSearch){
+      const normS = str => (str==null?'':String(str)).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+      sugSearch.addEventListener('input', ()=>{
+        const q = normS(sugSearch.value.trim());
+        document.querySelectorAll('#suggest-body .cmd-sug-block').forEach(block=>{
+          let any=false;
+          block.querySelectorAll('tr[data-artname]').forEach(tr=>{
+            const match = q==='' ? true : normS(tr.dataset.artname).includes(q);
+            tr.style.display = match ? '' : 'none';
+            if(match) any=true;
+          });
+          block.style.display = any ? '' : 'none';
+        });
+      });
+    }
     document.getElementById('create-cmd').onclick = async ()=>{
       const date = new Date().toISOString().slice(0,10);
       Object.keys(groups).forEach(fid=>{
